@@ -56,6 +56,19 @@
   .hidden{display:none}
   .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
+  .tabs{background:var(--card);border-bottom:1px solid var(--line);padding:0 24px;display:flex;gap:4px}
+  .tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:12px 16px;color:var(--muted);font-weight:600}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .subtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .subtabs button{border-radius:999px;padding:6px 16px}
+  .subtabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .fuente{color:var(--muted);font-size:12px;margin:-4px 0 12px}
+  .chartbox{position:relative;height:320px}
+  .chartbox.alto{height:440px}
+  .panel + .panel{margin-top:12px}
+  select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text)}
+  .neg{color:var(--bad)}
+  .pos{color:var(--ok)}
 </style>
 </head>
 <body>
@@ -63,6 +76,10 @@
   <h1 id="titulo">Archivos</h1>
   <div class="user" id="userbox"></div>
 </header>
+<nav class="tabs hidden" id="tabs">
+  <button data-tab="archivos" class="on">Archivos</button>
+  <button data-tab="pantera">Pantera</button>
+</nav>
 <main>
   <div id="banner"></div>
 
@@ -98,6 +115,55 @@
       <div class="tablewrap"><table id="tabla"></table></div>
     </div>
   </section>
+
+  <section id="vistaPantera" class="hidden">
+    <div class="meta">
+      <span id="pOrigen"></span>
+      <span id="pHora"></span>
+      <button id="pRefrescar">Actualizar</button>
+    </div>
+    <div class="subtabs" id="pSub">
+      <button data-p="deuda" class="on">Deuda</button>
+      <button data-p="valor">Valor vs avalúos</button>
+      <button data-p="inquilinos">Inquilinos</button>
+      <button data-p="balances">Balances</button>
+    </div>
+
+    <div id="p-deuda" class="psec">
+      <div class="fuente" id="fDeuda"></div>
+      <div class="kpis" id="kDeuda"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Deuda por banco</h2><div class="chartbox"><canvas id="cBanco"></canvas></div></div>
+        <div class="panel"><h2>Deuda por tipo de activo</h2><div class="chartbox"><canvas id="cClase"></canvas></div></div>
+      </div>
+      <div class="panel"><h2>Préstamos por activo</h2><div class="tablewrap"><table id="tDeuda"></table></div></div>
+    </div>
+
+    <div id="p-valor" class="psec hidden">
+      <div class="fuente" id="fValor"></div>
+      <div class="kpis" id="kValor"></div>
+      <div class="panel"><h2>Valor en libros vs avalúo por activo</h2><div class="chartbox alto"><canvas id="cValor"></canvas></div></div>
+      <div class="panel"><h2>Detalle por activo</h2><div class="tablewrap"><table id="tValor"></table></div></div>
+    </div>
+
+    <div id="p-inquilinos" class="psec hidden">
+      <div class="fuente" id="fInq"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Participación en la renta anual</h2><div class="chartbox alto"><canvas id="cInq"></canvas></div></div>
+        <div class="panel"><h2>Detalle por inquilino</h2><div class="tablewrap"><table id="tInq"></table></div></div>
+      </div>
+    </div>
+
+    <div id="p-balances" class="psec hidden">
+      <div class="tools"><label for="selBal" style="color:var(--muted);font-size:13px">Empresa</label><select id="selBal"></select></div>
+      <div class="fuente" id="fBal"></div>
+      <div class="kpis" id="kBal"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Principales gastos del año</h2><div class="chartbox"><canvas id="cGastos"></canvas></div></div>
+        <div class="panel"><h2>Ingresos por cuenta</h2><div class="tablewrap"><table id="tIngresos"></table></div></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -108,7 +174,8 @@ const CONFIG = {
   tenantId: "0ff454c3-16d0-4731-b6f0-19fecd1cb745",   // Rapi Préstamos S A · Id. de directorio (inquilino)
   sitio: "rapiprestamospty.sharepoint.com/sites/TecnologaRapiPrestamos", // dirección del sitio, sin https://
   biblioteca: "",          // vacío = la biblioteca principal del sitio (Documentos)
-  titulo: "RapiPréstamos · Archivos"
+  panteraCarpeta: "Proyectos M&CAPITAL/Archivos", // carpeta que lee la sección Pantera
+  titulo: "RapiPréstamos · Panel de datos"
 };
 /* ========================================================= */
 
@@ -123,7 +190,12 @@ let msalApp = null, cuenta = null, drive = null;
 let estado = { ruta: [], items: [], busqueda: null, orden: "name", desc: false };
 
 function esc(v){ return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function vista(n){ ["vistaLogin","vistaCargando","vistaPanel"].forEach(v => $(v).classList.toggle("hidden", v !== n)); }
+let pestana = "archivos";
+function vista(n){
+  if (n === "vistaPanel" && pestana === "pantera") n = "vistaPantera";
+  ["vistaLogin","vistaCargando","vistaPanel","vistaPantera"].forEach(v => $(v).classList.toggle("hidden", v !== n));
+  $("tabs").classList.toggle("hidden", n === "vistaLogin" || n === "vistaCargando");
+}
 function cargando(t){ $("txtCargando").textContent = t; vista("vistaCargando"); }
 function aviso(tipo, html){ $("banner").innerHTML = html ? `<div class="banner ${tipo}">${html}</div>` : ""; }
 function esDemo(){ return new URLSearchParams(location.search).has("demo"); }
@@ -260,7 +332,7 @@ function pintarTabla(){
   filas.sort((a, b) => (!!b.folder - !!a.folder) || s * (k === "size" ? (a.size || 0) - (b.size || 0)
     : k === "fecha" ? new Date(a.lastModifiedDateTime) - new Date(b.lastModifiedDateTime)
     : k === "persona" ? persona(a).localeCompare(persona(b), "es") : a.name.localeCompare(b.name, "es", { numeric: true })));
-  $("txtConteo").textContent = `${fmtNum.format(filas.length)} elementos`;
+  $("txtConteo").textContent = `${fmtNum.format(filas.length)} ${filas.length === 1 ? "elemento" : "elementos"}`;
   const flecha = c => estado.orden === c ? (estado.desc ? " ▼" : " ▲") : "";
   const cab = `<thead><tr><th data-k="name">Nombre${flecha("name")}</th><th data-k="fecha">Modificado${flecha("fecha")}</th><th data-k="persona">Modificado por${flecha("persona")}</th><th data-k="size" style="text-align:right">Tamaño${flecha("size")}</th></tr></thead>`;
   const cuerpo = filas.map(i => {
@@ -294,6 +366,206 @@ async function buscarEnTodo(){
   catch (e) { aviso("error", esc(e.message || e)); }
 }
 
+/* =================== SECCIÓN PANTERA ===================
+   Lee sola los Excel de CONFIG.panteraCarpeta cada vez que se abre o se actualiza. */
+const LIB_XLSX = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+const LIB_CHART = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";
+const COLORES = ["#2557d6","#e07a2e","#1d9e75","#7f77dd","#d4537e","#378add","#ba7517","#5f5e5a","#0f6e56","#a32d2d"];
+const fmtUSD = new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", maximumFractionDigits: 0 });
+const fmtPct = new Intl.NumberFormat("es-PA", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 2 });
+let pantera = { archivos: [], libros: {}, graficas: {}, sub: "deuda", cargado: false };
+
+function millones(n){ return Math.abs(n) >= 1e6 ? "$" + (n / 1e6).toLocaleString("es-PA", { maximumFractionDigits: 2 }) + " M" : fmtUSD.format(n); }
+function num(v){
+  if (typeof v === "number") return v;
+  if (v == null) return null;
+  let s = String(v).replace(/[$\s%]/g, "");
+  if (s === "" || s === "-") return 0;
+  if (/^-?[\d.]+,\d+$/.test(s)) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  else s = s.replace(/,/g, "");
+  const n = parseFloat(s); return isFinite(n) ? n : null;
+}
+function txt(v){ return v == null ? "" : String(v).trim(); }
+function filas(ws){ return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null }); }
+function hoja(wb, nombre){ const n = wb.SheetNames.find(s => s.toLowerCase().includes(nombre.toLowerCase())); return n ? wb.Sheets[n] : null; }
+function buscaCol(cab, prueba){ return cab.findIndex(c => prueba(txt(c).toLowerCase())); }
+function buscaFila(rs, prueba){ return rs.findIndex(r => r && prueba(r.map(c => txt(c).toLowerCase()))); }
+function kpis(id, lista){ $(id).innerHTML = lista.map(([l, v, extra]) => `<div class="kpi"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div>${extra ? `<div class="label" style="margin-top:4px">${esc(extra)}</div>` : ""}</div>`).join(""); }
+function tabla(id, cab, cuerpo, numericas){
+  $(id).innerHTML = `<thead><tr>${cab.map((c, i) => `<th style="cursor:default${numericas.includes(i) ? ";text-align:right" : ""}">${esc(c)}</th>`).join("")}</tr></thead><tbody>` +
+    cuerpo.map(f => `<tr>${f.map((c, i) => `<td class="${numericas.includes(i) ? "n" : ""}">${c}</td>`).join("")}</tr>`).join("") + `</tbody>`;
+}
+function grafica(id, config){
+  if (pantera.graficas[id]) pantera.graficas[id].destroy();
+  config.options = Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 12 } } } }, config.options || {});
+  pantera.graficas[id] = new Chart($(id), config);
+}
+function fuente(id, archivo){ $(id).textContent = archivo ? `Fuente: ${archivo.name} · modificado ${fecha(archivo.lastModifiedDateTime)}` : ""; }
+function errorEn(id, msg){ $(id).innerHTML = `<span style="color:var(--bad)">${esc(msg)}</span>`; }
+
+async function listarCarpetaPantera(){
+  if (esDemo()) return window.__demoPantera || [];
+  const ruta = CONFIG.panteraCarpeta.split("/").map(encodeURIComponent).join("/");
+  return todas(`/drives/${drive.id}/root:/${ruta}:/children?$top=200`);
+}
+async function libro(archivo){
+  if (pantera.libros[archivo.id]) return pantera.libros[archivo.id];
+  const url = archivo["@microsoft.graph.downloadUrl"];
+  if (!url) throw new Error(`No se pudo descargar ${archivo.name}.`);
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`No se pudo descargar ${archivo.name} (${r.status}).`);
+  const wb = XLSX.read(await r.arrayBuffer(), { type: "array" });
+  pantera.libros[archivo.id] = wb;
+  return wb;
+}
+function archivoQue(prueba){ return pantera.archivos.find(a => a.file && prueba(a.name.toLowerCase())); }
+
+async function cargarPantera(forzar){
+  if (pantera.cargado && !forzar) { mostrarSub(pantera.sub); return; }
+  $("pOrigen").textContent = "Leyendo la carpeta " + CONFIG.panteraCarpeta + "…";
+  try {
+    await Promise.all([window.XLSX ? 0 : cargarScript(LIB_XLSX), window.Chart ? 0 : cargarScript(LIB_CHART)]);
+    pantera.libros = {};
+    pantera.archivos = await listarCarpetaPantera();
+    pantera.cargado = true;
+    $("pOrigen").textContent = `Carpeta: ${CONFIG.panteraCarpeta} · ${pantera.archivos.filter(a => a.file).length} archivos`;
+    $("pHora").textContent = "· Actualizado: " + new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+    llenarSelectorBalances();
+    await mostrarSub(pantera.sub);
+  } catch (e) {
+    $("pOrigen").innerHTML = `<span style="color:var(--bad)">No se pudo leer la carpeta: ${esc(e.message || e)}</span>`;
+  }
+}
+async function mostrarSub(s){
+  pantera.sub = s;
+  document.querySelectorAll("#pSub button").forEach(b => b.classList.toggle("on", b.dataset.p === s));
+  document.querySelectorAll(".psec").forEach(d => d.classList.toggle("hidden", d.id !== "p-" + s));
+  const f = { deuda: pintarDeuda, valor: pintarValor, inquilinos: pintarInquilinos, balances: pintarBalance }[s];
+  try { await f(); } catch (e) { errorEn({ deuda: "fDeuda", valor: "fValor", inquilinos: "fInq", balances: "fBal" }[s], e.message || String(e)); }
+}
+
+/* --- Deuda (Pantera Debt Sheet) --- */
+async function pintarDeuda(){
+  const a = archivoQue(n => n.includes("debt"));
+  if (!a) throw new Error("No encontré en la carpeta un Excel de deuda (con “Debt” en el nombre).");
+  fuente("fDeuda", a);
+  const wb = await libro(a), rs = filas(hoja(wb, "debt") || wb.Sheets[wb.SheetNames[0]]);
+  const h = buscaFila(rs, r => r.includes("asset") && r.includes("debt"));
+  if (h < 0) throw new Error(`En ${a.name} no encontré la fila de encabezados (Asset, Debt…).`);
+  const cab = rs[h];
+  const c = { activo: buscaCol(cab, x => x === "asset"), clase: buscaCol(cab, x => x.includes("class")), deuda: buscaCol(cab, x => x === "debt"),
+    tasa: buscaCol(cab, x => x.includes("interest")), plazo: buscaCol(cab, x => x.includes("length")), venc: buscaCol(cab, x => x.includes("maturity")), banco: buscaCol(cab, x => x.includes("bank")) };
+  let seccion = "Operativo"; const lista = [];
+  for (const r of rs.slice(h + 1)) {
+    const nombre = txt(r && r[c.activo]);
+    if (!nombre) continue;
+    if (/^total/i.test(nombre)) continue;
+    if (/desarrollo/i.test(nombre)) { seccion = "En desarrollo"; continue; }
+    lista.push({ activo: nombre, clase: txt(r[c.clase]) || "—", deuda: num(r[c.deuda]) || 0, tasa: txt(r[c.tasa]), plazo: txt(r[c.plazo]), venc: txt(r[c.venc]), banco: txt(r[c.banco]) || "Sin banco", seccion });
+  }
+  const con = lista.filter(x => x.deuda > 0);
+  const op = con.filter(x => x.seccion === "Operativo").reduce((s, x) => s + x.deuda, 0);
+  const dev = con.filter(x => x.seccion !== "Operativo").reduce((s, x) => s + x.deuda, 0);
+  kpis("kDeuda", [["Deuda total", millones(op + dev)], ["Activos operativos", millones(op)], ["En desarrollo", millones(dev)], ["Activos con préstamo", `${con.length} de ${lista.length}`]]);
+  const porBanco = agrupar(con, x => x.banco, x => x.deuda), porClase = agrupar(con, x => x.clase, x => x.deuda);
+  grafica("cBanco", { type: "bar", data: { labels: porBanco.map(p => p[0]), datasets: [{ label: "Deuda", data: porBanco.map(p => p[1]), backgroundColor: COLORES[0] }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: t => millones(t.raw) } } }, scales: { y: { ticks: { callback: v => millones(v) } } } } });
+  grafica("cClase", { type: "doughnut", data: { labels: porClase.map(p => p[0]), datasets: [{ data: porClase.map(p => p[1]), backgroundColor: COLORES }] },
+    options: { plugins: { tooltip: { callbacks: { label: t => `${t.label}: ${millones(t.raw)}` } } } } });
+  tabla("tDeuda", ["Activo", "Tipo", "Deuda", "Tasa", "Plazo", "Vence", "Banco", "Estado"],
+    con.sort((x, y) => y.deuda - x.deuda).map(x => [esc(x.activo), esc(x.clase), fmtUSD.format(x.deuda), esc(x.tasa), esc(x.plazo), esc(x.venc), esc(x.banco), esc(x.seccion)]), [2]);
+}
+function agrupar(lista, clave, valor){ const m = new Map(); lista.forEach(x => m.set(clave(x), (m.get(clave(x)) || 0) + valor(x))); return [...m.entries()].sort((a, b) => b[1] - a[1]); }
+
+/* --- Valor vs avalúos (Data Room · NAV vs Appraisals) --- */
+async function pintarValor(){
+  const a = archivoQue(n => n.includes("data room"));
+  if (!a) throw new Error("No encontré en la carpeta el Excel del Data Room (con “Data Room” en el nombre).");
+  fuente("fValor", a);
+  const wb = await libro(a), ws = hoja(wb, "nav vs");
+  if (!ws) throw new Error(`En ${a.name} no encontré la hoja “NAV vs Appraisals”.`);
+  const rs = filas(ws), h = buscaFila(rs, r => r.includes("asset") && r.some(x => x.includes("appraisal value")));
+  if (h < 0) throw new Error("No encontré los encabezados de la hoja NAV vs Appraisals.");
+  const cab = rs[h];
+  const c = { activo: buscaCol(cab, x => x === "asset"), clase: buscaCol(cab, x => x.includes("class")), libros: buscaCol(cab, x => x.includes("value books")),
+    avaluo: buscaCol(cab, x => x.includes("appraisal value")), renta: buscaCol(cab, x => x.includes("monthly rent")), m2: buscaCol(cab, x => x === "m2") };
+  const lista = [];
+  for (const r of rs.slice(h + 1)) {
+    const nombre = txt(r && r[c.activo]);
+    if (!nombre || /^total/i.test(nombre)) continue;
+    lista.push({ activo: nombre, clase: txt(r[c.clase]), libros: num(r[c.libros]) || 0, avaluo: num(r[c.avaluo]) || 0, renta: num(r[c.renta]) || 0, m2: num(r[c.m2]) || 0 });
+  }
+  const L = lista.reduce((s, x) => s + x.libros, 0), A = lista.reduce((s, x) => s + x.avaluo, 0), R = lista.reduce((s, x) => s + x.renta, 0);
+  kpis("kValor", [["Valor en libros", millones(L)], ["Valor de avalúo", millones(A), `${A >= L ? "+" : ""}${fmtPct.format(L ? (A - L) / L : 0)} vs libros`],
+    ["Renta mensual", fmtUSD.format(R)], ["Cap rate (avalúo)", fmtPct.format(A ? R * 12 / A : 0)]]);
+  const orden = lista.slice().sort((x, y) => y.avaluo - x.avaluo);
+  grafica("cValor", { type: "bar", data: { labels: orden.map(x => x.activo), datasets: [
+      { label: "Libros", data: orden.map(x => x.libros), backgroundColor: "#b5c7f2" }, { label: "Avalúo", data: orden.map(x => x.avaluo), backgroundColor: COLORES[0] }] },
+    options: { indexAxis: "y", plugins: { tooltip: { callbacks: { label: t => `${t.dataset.label}: ${millones(t.raw)}` } } }, scales: { x: { ticks: { callback: v => millones(v) } } } } });
+  tabla("tValor", ["Activo", "Tipo", "Libros", "Avalúo", "Diferencia", "Renta mensual", "Cap rate", "m²"],
+    orden.map(x => { const d = x.libros ? (x.avaluo - x.libros) / x.libros : 0;
+      return [esc(x.activo), esc(x.clase), fmtUSD.format(x.libros), fmtUSD.format(x.avaluo), `<span class="${d < 0 ? "neg" : d > 0 ? "pos" : ""}">${fmtPct.format(d)}</span>`, fmtUSD.format(x.renta), fmtPct.format(x.avaluo ? x.renta * 12 / x.avaluo : 0), fmtNum.format(Math.round(x.m2))]; }), [2, 3, 4, 5, 6, 7]);
+}
+
+/* --- Inquilinos (Data Room · Tenant Concentration) --- */
+async function pintarInquilinos(){
+  const a = archivoQue(n => n.includes("data room"));
+  if (!a) throw new Error("No encontré en la carpeta el Excel del Data Room.");
+  fuente("fInq", a);
+  const wb = await libro(a), ws = hoja(wb, "tenant");
+  if (!ws) throw new Error(`En ${a.name} no encontré la hoja “Tenant Concentration”.`);
+  const rs = filas(ws), h = buscaFila(rs, r => r.includes("tenant"));
+  const cab = rs[h], cRenta = buscaCol(cab, x => x.includes("annual rent")), cNav = buscaCol(cab, x => x.includes("nav"));
+  if (cRenta < 1) throw new Error("No encontré la columna “Annual Rent %”.");
+  const leer = (col) => { const m = new Map(); for (const r of rs.slice(h + 1)) { const t = txt(r && r[col - 1]); if (t) m.set(t, num(r[col]) || 0); } return m; };
+  const renta = leer(cRenta), nav = cNav > 0 ? leer(cNav) : new Map();
+  const lista = [...renta.entries()].sort((x, y) => y[1] - x[1]);
+  grafica("cInq", { type: "bar", data: { labels: lista.map(x => x[0]), datasets: [{ label: "% de la renta anual", data: lista.map(x => x[1] * 100), backgroundColor: COLORES[0] }] },
+    options: { indexAxis: "y", plugins: { legend: { display: false }, tooltip: { callbacks: { label: t => t.raw.toFixed(1) + " %" } } }, scales: { x: { ticks: { callback: v => v + " %" } } } } });
+  tabla("tInq", ["Inquilino", "% renta anual", "% del NAV"], lista.map(([t, v]) => [esc(t), fmtPct.format(v), nav.has(t) ? fmtPct.format(nav.get(t)) : "—"]), [1, 2]);
+}
+
+/* --- Balances de comprobación --- */
+function archivosBalance(){ return pantera.archivos.filter(a => a.file && /balance/i.test(a.name) && /\.xls[xm]?$/i.test(a.name)).sort((x, y) => x.name.localeCompare(y.name, "es")); }
+function llenarSelectorBalances(){
+  const sel = $("selBal"), prev = sel.value;
+  sel.innerHTML = archivosBalance().map(a => `<option value="${esc(a.id)}">${esc(a.name.replace(/_?balance.*$/i, "").replace(/\.xlsx?$/i, "").trim() || a.name)}</option>`).join("");
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+async function pintarBalance(){
+  const a = pantera.archivos.find(x => x.id === $("selBal").value);
+  if (!a) throw new Error("No encontré balances de comprobación en la carpeta (archivos con “Balance” en el nombre).");
+  const wb = await libro(a), rs = filas(wb.Sheets[wb.SheetNames[0]]);
+  const empresa = txt(rs[0] && rs[0][0]), corte = txt(rs[2] && rs[2][0]);
+  $("fBal").textContent = `Fuente: ${a.name} · ${empresa}${corte ? " · " + corte : ""} · modificado ${fecha(a.lastModifiedDateTime)}`;
+  const cuentas = [];
+  for (const r of rs) {
+    const m = /^(\d{3,})\s*-\s*(.+)$/.exec(txt(r && r[0]));
+    if (!m) continue;
+    cuentas.push({ cod: m[1], nombre: m[2].trim(), deb: num(r[2]) || 0, cred: num(r[3]) || 0, saldo: num(r[4]) || 0 });
+  }
+  if (!cuentas.length) throw new Error(`No encontré cuentas en ${a.name}.`);
+  const de = d => cuentas.filter(c => d.includes(c.cod[0]));
+  const ingresos = -de("4").reduce((s, c) => s + c.saldo, 0), gastos = de("567").reduce((s, c) => s + c.saldo, 0);
+  const ingMes = de("4").reduce((s, c) => s + c.cred - c.deb, 0), gasMes = de("567").reduce((s, c) => s + c.deb - c.cred, 0);
+  const efectivo = cuentas.filter(c => /^10[12]/.test(c.cod)).reduce((s, c) => s + c.saldo, 0);
+  kpis("kBal", [["Ingresos del año", fmtUSD.format(ingresos), `Del mes: ${fmtUSD.format(ingMes)}`], ["Gastos del año", fmtUSD.format(gastos), `Del mes: ${fmtUSD.format(gasMes)}`],
+    ["Utilidad del año", fmtUSD.format(ingresos - gastos), `Del mes: ${fmtUSD.format(ingMes - gasMes)}`], ["Caja y bancos", fmtUSD.format(efectivo)]]);
+  const top = de("567").filter(c => c.saldo > 0).sort((x, y) => y.saldo - x.saldo).slice(0, 8);
+  grafica("cGastos", { type: "bar", data: { labels: top.map(c => c.nombre), datasets: [{ label: "Gasto acumulado", data: top.map(c => c.saldo), backgroundColor: COLORES[1] }] },
+    options: { indexAxis: "y", plugins: { legend: { display: false }, tooltip: { callbacks: { label: t => fmtUSD.format(t.raw) } } }, scales: { x: { ticks: { callback: v => fmtUSD.format(v) } } } } });
+  tabla("tIngresos", ["Cuenta", "Del año", "Del mes"], de("4").filter(c => c.saldo || c.cred || c.deb).sort((x, y) => x.saldo - y.saldo)
+    .map(c => [esc(`${c.cod} · ${c.nombre}`), fmtUSD.format(-c.saldo), fmtUSD.format(c.cred - c.deb)]), [1, 2]);
+}
+
+function cambiarPestana(t){
+  pestana = t;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  vista(t === "pantera" ? "vistaPantera" : "vistaPanel");
+  if (t === "pantera") cargarPantera(false);
+}
+
 /* ---------- Arranque ---------- */
 (async function(){
   document.title = CONFIG.titulo; $("titulo").textContent = CONFIG.titulo;
@@ -301,6 +573,10 @@ async function buscarEnTodo(){
   $("buscar").onkeydown = e => { if (e.key === "Enter") buscarEnTodo(); };
   $("btnBuscarTodo").onclick = buscarEnTodo;
   $("btnRefrescar").onclick = () => estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual());
+  document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => cambiarPestana(b.dataset.tab));
+  document.querySelectorAll("#pSub button").forEach(b => b.onclick = () => mostrarSub(b.dataset.p));
+  $("pRefrescar").onclick = () => cargarPantera(true);
+  $("selBal").onchange = () => mostrarSub("balances");
 
   if (esDemo()) {
     aviso("demo", "<b>Modo demo.</b> Son archivos de ejemplo. Quita <code>?demo</code> de la dirección para ver tus archivos reales.");
