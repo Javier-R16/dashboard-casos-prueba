@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de datos · SharePoint</title>
+<style>
+  :root{--bg:#f4f5f7;--card:#ffffff;--text:#16213a;--muted:#5a6478;--line:#e1e5ec;--accent:#2557d6;--accent-soft:#e8eefc;--ok:#1d7a4f;--warn:#a15c07;--bad:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  .user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+  .pill{padding:3px 10px;border-radius:999px;font-size:12px;background:var(--accent-soft);color:var(--accent)}
+  .pill.ok{background:#e3f4ec;color:var(--ok)}
+  button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--text);padding:7px 14px;border-radius:8px;cursor:pointer}
+  button:hover{background:#f0f2f6}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:#1d47b3}
+  main{max-width:1200px;margin:0 auto;padding:20px 24px 48px}
+  .banner{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;line-height:1.5}
+  .banner.demo{background:#fff6e5;color:#6b4300;border:1px solid #f3d9a4}
+  .banner.error{background:#fdecea;color:var(--bad);border:1px solid #f5c2bd}
+  .meta{color:var(--muted);font-size:13px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .label{color:var(--muted);font-size:13px}
+  .kpi .value{font-size:26px;font-weight:600;margin-top:4px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:16px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel h2{font-size:15px;margin:0 0 12px;font-weight:600}
+  .bar{display:grid;grid-template-columns:130px 1fr 90px;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+  .bar .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar .track{background:#eef1f6;border-radius:6px;height:14px;overflow:hidden}
+  .bar .fill{background:var(--accent);height:14px;border-radius:6px}
+  .bar .num{text-align:right;color:var(--muted)}
+  .tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+  input,select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text)}
+  input{min-width:220px}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{background:#f7f8fa;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;text-align:center}
+  .center p{color:var(--muted);max-width:460px;line-height:1.6;margin:0}
+  .hidden{display:none}
+  .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Panel de datos</h1>
+  <div class="user" id="userbox"></div>
+</header>
+<main>
+  <div id="banner"></div>
+
+  <section id="vistaLogin" class="center hidden">
+    <h2 style="margin:0">Inicia sesión para ver los datos</h2>
+    <p>Usa tu cuenta de Microsoft de la empresa. Los datos se leen directo de SharePoint y solo ves lo que tu cuenta tiene permitido.</p>
+    <button class="primary" id="btnLogin">Iniciar sesión con Microsoft</button>
+  </section>
+
+  <section id="vistaCargando" class="center hidden">
+    <div class="spin"></div>
+    <p id="txtCargando">Cargando…</p>
+  </section>
+
+  <section id="vistaPanel" class="hidden">
+    <div class="meta">
+      <span id="txtOrigen"></span>
+      <span id="txtHora"></span>
+      <button id="btnRefrescar">Actualizar</button>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="panel" id="panelEstado"><h2 id="tEstado">Por estado</h2><div id="barEstado"></div></div>
+      <div class="panel" id="panelGrupo"><h2 id="tGrupo">Por grupo</h2><div id="barGrupo"></div></div>
+    </div>
+    <div class="panel">
+      <h2>Registros</h2>
+      <div class="tools">
+        <input type="search" id="buscar" placeholder="Buscar en todos los campos">
+        <select id="filtroEstado"></select>
+        <span id="txtConteo" style="color:var(--muted);font-size:13px"></span>
+      </div>
+      <div class="tablewrap"><table id="tabla"></table></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ===================== CONFIGURACIÓN =====================
+   Solo cambias este bloque. Ninguno de estos datos es secreto. */
+const CONFIG = {
+  clientId: "22711e30-33c7-449a-a937-c2c06e483996",   // Dashboard Casos Prueba · Id. de aplicación (cliente)
+  tenantId: "0ff454c3-16d0-4731-b6f0-19fecd1cb745",   // Rapi Préstamos S A · Id. de directorio (inquilino)
+  sitio: "rapiprestamos.sharepoint.com/sites/Pruebas", // dirección del sitio de SharePoint, sin https://
+  lista: "Casos prueba",                        // nombre de la Lista, tal como se ve en SharePoint
+  campos: {                                     // nombres de columna tal como se ven en la Lista
+    estado: "Estado",
+    monto: "Monto (USD)",
+    fecha: "Fecha de inicio",
+    agrupar: "Provincia"
+  },
+  titulo: "RapiPréstamos · Panel de datos"
+};
+/* ========================================================= */
+
+const SCOPES = ["Sites.Read.All"];
+const GRAPH = "https://graph.microsoft.com/v1.0";
+const MSAL_URL = "https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.30.0/lib/msal-browser.min.js";
+const OCULTAS = new Set(["ContentType","Attachments","Edit","LinkTitleNoMenu","LinkTitle","DocIcon","ItemChildCount","FolderChildCount","_ColorTag","ComplianceAssetId","AppAuthor","AppEditor","_UIVersionString"]);
+
+const $ = id => document.getElementById(id);
+const fmtNum = new Intl.NumberFormat("es-PA");
+const fmtUSD = new Intl.NumberFormat("es-PA", {style:"currency", currency:"USD", currencyDisplay:"narrowSymbol", maximumFractionDigits:0});
+let msalApp = null, cuenta = null;
+let estado = { columnas: [], filas: [], orden: null, desc: false };
+
+function esc(v){ return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function vista(nombre){ ["vistaLogin","vistaCargando","vistaPanel"].forEach(v => $(v).classList.toggle("hidden", v !== nombre)); }
+function cargando(txt){ $("txtCargando").textContent = txt; vista("vistaCargando"); }
+function aviso(tipo, html){ $("banner").innerHTML = html ? `<div class="banner ${tipo}">${html}</div>` : ""; }
+function configPendiente(){ return CONFIG.clientId.startsWith("PEGA-") || CONFIG.tenantId.startsWith("PEGA-"); }
+function esDemo(){ return new URLSearchParams(location.search).has("demo") || configPendiente(); }
+
+/* ---------- Inicio de sesión (MSAL) ---------- */
+function cargarScript(src){
+  return new Promise((ok, mal) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => mal(new Error("No se pudo cargar la librería de inicio de sesión de Microsoft. Revisa tu conexión.")); document.head.appendChild(s); });
+}
+
+async function iniciarMsal(){
+  await cargarScript(MSAL_URL);
+  msalApp = new msal.PublicClientApplication({
+    auth: { clientId: CONFIG.clientId, authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri: location.origin + location.pathname },
+    cache: { cacheLocation: "localStorage" }
+  });
+  await msalApp.initialize();
+  const resp = await msalApp.handleRedirectPromise();
+  cuenta = (resp && resp.account) || msalApp.getAllAccounts()[0] || null;
+}
+
+async function token(){
+  try {
+    const r = await msalApp.acquireTokenSilent({ scopes: SCOPES, account: cuenta });
+    return r.accessToken;
+  } catch (e) {
+    if (e instanceof msal.InteractionRequiredAuthError) { await msalApp.acquireTokenRedirect({ scopes: SCOPES, account: cuenta }); return new Promise(() => {}); }
+    throw e;
+  }
+}
+
+function pintarUsuario(){
+  if (esDemo()) { $("userbox").innerHTML = `<span class="pill">Modo demo</span>`; return; }
+  if (!cuenta) { $("userbox").innerHTML = ""; return; }
+  $("userbox").innerHTML = `<span>Conectado: ${esc(cuenta.username)}</span><span class="pill ok">Sesión activa</span><button id="btnSalir">Cerrar sesión</button>`;
+  $("btnSalir").onclick = () => msalApp.logoutRedirect({ account: cuenta, postLogoutRedirectUri: location.origin + location.pathname });
+}
+
+/* ---------- Microsoft Graph ---------- */
+async function graph(url){
+  const t = await token();
+  const r = await fetch(url.startsWith("http") ? url : GRAPH + url, { headers: { Authorization: "Bearer " + t } });
+  if (r.ok) return r.json();
+  let detalle = ""; try { detalle = (await r.json()).error.message; } catch (e) {}
+  if (r.status === 401 || r.status === 403) throw new Error(`Sin permiso para leer SharePoint (${r.status}). Revisa que el administrador haya concedido el permiso Sites.Read.All y que tu cuenta tenga acceso al sitio. ${esc(detalle)}`);
+  if (r.status === 404) throw new Error(`No encontré el sitio o la lista (404). Revisa "sitio" y "lista" en CONFIG. ${esc(detalle)}`);
+  throw new Error(`Error ${r.status} al consultar Microsoft: ${esc(detalle)}`);
+}
+
+async function leerSharePoint(){
+  const limpio = CONFIG.sitio.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  const [host, ...resto] = limpio.split("/");
+  cargando("Buscando el sitio de SharePoint…");
+  const sitio = await graph(resto.length ? `/sites/${host}:/${resto.join("/")}` : `/sites/${host}`);
+
+  cargando("Buscando la lista…");
+  const listas = await graph(`/sites/${sitio.id}/lists?$select=id,displayName,name`);
+  const buscada = CONFIG.lista.trim().toLowerCase();
+  const lista = (listas.value || []).find(l => (l.displayName || "").toLowerCase() === buscada || (l.name || "").toLowerCase() === buscada);
+  if (!lista) throw new Error(`En el sitio no hay una lista llamada "${esc(CONFIG.lista)}". Listas disponibles: ${(listas.value || []).map(l => esc(l.displayName)).join(", ") || "ninguna"}.`);
+
+  const cols = await graph(`/sites/${sitio.id}/lists/${lista.id}/columns`);
+  const columnas = (cols.value || [])
+    .filter(c => !c.hidden && !OCULTAS.has(c.name) && (!c.readOnly || c.name === "Title"))
+    .map(c => ({ clave: c.name, nombre: c.displayName, tipo: c.number || c.currency ? "num" : c.dateTime ? "fecha" : "texto" }));
+
+  cargando("Leyendo los registros…");
+  const filas = [];
+  let url = `/sites/${sitio.id}/lists/${lista.id}/items?expand=fields&$top=500`;
+  while (url) {
+    const pagina = await graph(url);
+    (pagina.value || []).forEach(it => filas.push(it.fields || {}));
+    url = pagina["@odata.nextLink"] || null;
+    if (url) cargando(`Leyendo los registros… (${fmtNum.format(filas.length)})`);
+  }
+  return { columnas, filas, origen: `${lista.displayName} · ${limpio}` };
+}
+
+/* ---------- Datos de ejemplo (modo demo) ---------- */
+function datosDemo(){
+  const columnas = [
+    {clave:"Codigo",nombre:"Código",tipo:"texto"},{clave:"Cliente",nombre:"Cliente",tipo:"texto"},
+    {clave:"Propiedad",nombre:"Propiedad",tipo:"texto"},{clave:"Provincia",nombre:"Provincia",tipo:"texto"},
+    {clave:"Estado",nombre:"Estado",tipo:"texto"},{clave:"Fechadeinicio",nombre:"Fecha de inicio",tipo:"fecha"},
+    {clave:"Monto_x0028_USD_x0029_",nombre:"Monto (USD)",tipo:"num"},{clave:"Responsable",nombre:"Responsable",tipo:"texto"}];
+  const raw = [
+    ["C-001","Cliente Prueba 1","Finca 1021","Chiriquí","En trámite","2026-03-04",45000,"Abogado A"],
+    ["C-002","Cliente Prueba 2","Lote 7","Chiriquí","Audiencia","2026-04-15",28000,"Abogado B"],
+    ["C-003","Cliente Prueba 3","Finca 3388","Panamá","Sentencia","2025-11-20",62000,"Abogado A"],
+    ["C-004","Cliente Prueba 4","Casa 12-B","Panamá Oeste","En trámite","2026-06-02",85000,"Abogado C"],
+    ["C-005","Cliente Prueba 5","Lote 22","Veraguas","En trámite","2026-07-18",19500,"Abogado B"],
+    ["C-006","Cliente Prueba 6","Finca 5540","Coclé","Audiencia","2026-08-09",37000,"Abogado A"],
+    ["C-007","Cliente Prueba 7","Local 3","Panamá","Cerrado","2025-09-01",54000,"Abogado C"],
+    ["C-008","Cliente Prueba 8","Finca 7712","Chiriquí","En trámite","2026-10-12",41000,"Abogado B"]];
+  const filas = raw.map(r => Object.fromEntries(columnas.map((c, i) => [c.clave, r[i]])));
+  return { columnas, filas, origen: "Datos de ejemplo (Casos_prueba.xlsx)" };
+}
+
+/* ---------- Cálculos y pintado ---------- */
+function claveDe(nombre){ const c = estado.columnas.find(c => c.nombre.toLowerCase() === String(nombre || "").toLowerCase()); return c ? c.clave : null; }
+function numero(v){ const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : null; }
+function fecha(v){ if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; }
+function mostrar(col, v){
+  if (v === null || v === undefined || v === "") return "";
+  if (col.tipo === "fecha") { const d = fecha(v); return d ? [d.getUTCDate(), d.getUTCMonth() + 1].map(x => String(x).padStart(2, "0")).join("/") + "/" + d.getUTCFullYear() : esc(v); }
+  if (col.tipo === "num") { const n = numero(v); return n === null ? esc(v) : fmtNum.format(n); }
+  if (typeof v === "object") return esc(Array.isArray(v) ? v.map(x => x.LookupValue ?? x).join(", ") : (v.LookupValue ?? JSON.stringify(v)));
+  return esc(v);
+}
+function contarPor(clave, sumarClave){
+  const m = new Map();
+  estado.filas.forEach(f => { const k = String(f[clave] ?? "(vacío)") || "(vacío)"; const add = sumarClave ? (numero(f[sumarClave]) || 0) : 1; m.set(k, (m.get(k) || 0) + add); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+function barras(cont, pares, esDinero){
+  const max = Math.max(1, ...pares.map(p => p[1]));
+  $(cont).innerHTML = pares.slice(0, 10).map(([n, v]) =>
+    `<div class="bar"><span class="name" title="${esc(n)}">${esc(n)}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div><span class="num">${esDinero ? fmtUSD.format(v) : fmtNum.format(v)}</span></div>`).join("") || `<p style="color:var(--muted)">Sin datos</p>`;
+}
+
+function pintarPanel(){
+  const kEstado = claveDe(CONFIG.campos.estado), kMonto = claveDe(CONFIG.campos.monto), kFecha = claveDe(CONFIG.campos.fecha), kGrupo = claveDe(CONFIG.campos.agrupar);
+  const total = estado.filas.length;
+  const montos = kMonto ? estado.filas.map(f => numero(f[kMonto])).filter(n => n !== null) : [];
+  const suma = montos.reduce((a, b) => a + b, 0);
+  const hace30 = Date.now() - 30 * 864e5;
+  const recientes = estado.filas.filter(f => { const d = fecha(kFecha ? f[kFecha] : f.Created); return d && d.getTime() >= hace30; }).length;
+
+  const kpis = [["Total de registros", fmtNum.format(total)]];
+  if (kMonto) kpis.push([`Suma de ${CONFIG.campos.monto}`, fmtUSD.format(suma)], [`Promedio de ${CONFIG.campos.monto}`, fmtUSD.format(montos.length ? suma / montos.length : 0)]);
+  kpis.push([kFecha ? `Últimos 30 días (${CONFIG.campos.fecha})` : "Creados en los últimos 30 días", fmtNum.format(recientes)]);
+  $("kpis").innerHTML = kpis.map(([l, v]) => `<div class="kpi"><div class="label">${esc(l)}</div><div class="value">${v}</div></div>`).join("");
+
+  $("panelEstado").classList.toggle("hidden", !kEstado);
+  if (kEstado) { $("tEstado").textContent = `Registros por ${CONFIG.campos.estado}`; barras("barEstado", contarPor(kEstado), false); }
+  $("panelGrupo").classList.toggle("hidden", !kGrupo);
+  if (kGrupo) { $("tGrupo").textContent = kMonto ? `${CONFIG.campos.monto} por ${CONFIG.campos.agrupar}` : `Registros por ${CONFIG.campos.agrupar}`; barras("barGrupo", contarPor(kGrupo, kMonto), !!kMonto); }
+
+  const sel = $("filtroEstado");
+  sel.classList.toggle("hidden", !kEstado);
+  if (kEstado) sel.innerHTML = `<option value="">Todos (${esc(CONFIG.campos.estado)})</option>` + contarPor(kEstado).map(([n]) => `<option>${esc(n)}</option>`).join("");
+  pintarTabla();
+}
+
+function pintarTabla(){
+  const kEstado = claveDe(CONFIG.campos.estado);
+  const q = $("buscar").value.trim().toLowerCase(), fe = $("filtroEstado").value;
+  let filas = estado.filas.filter(f =>
+    (!fe || String(f[kEstado] ?? "(vacío)") === fe) &&
+    (!q || estado.columnas.some(c => String(f[c.clave] ?? "").toLowerCase().includes(q))));
+  if (estado.orden) {
+    const col = estado.columnas.find(c => c.clave === estado.orden);
+    filas = filas.slice().sort((a, b) => {
+      const x = a[col.clave], y = b[col.clave];
+      const r = col.tipo === "num" ? (numero(x) ?? -Infinity) - (numero(y) ?? -Infinity) : String(x ?? "").localeCompare(String(y ?? ""), "es", {numeric:true});
+      return estado.desc ? -r : r;
+    });
+  }
+  const tope = 300;
+  $("txtConteo").textContent = `${fmtNum.format(filas.length)} registros` + (filas.length > tope ? ` (se muestran los primeros ${tope})` : "");
+  const cab = estado.columnas.map(c => `<th data-k="${esc(c.clave)}">${esc(c.nombre)}${estado.orden === c.clave ? (estado.desc ? " ▼" : " ▲") : ""}</th>`).join("");
+  const cuerpo = filas.slice(0, tope).map(f => `<tr>${estado.columnas.map(c => `<td class="${c.tipo === "num" ? "n" : ""}">${mostrar(c, f[c.clave])}</td>`).join("")}</tr>`).join("");
+  $("tabla").innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${cuerpo || `<tr><td colspan="${estado.columnas.length}" style="color:var(--muted)">Sin resultados</td></tr>`}</tbody>`;
+  $("tabla").querySelectorAll("th").forEach(th => th.onclick = () => { const k = th.dataset.k; estado.desc = estado.orden === k ? !estado.desc : false; estado.orden = k; pintarTabla(); });
+}
+
+async function cargarDatos(){
+  try {
+    const d = esDemo() ? datosDemo() : await leerSharePoint();
+    estado.columnas = d.columnas; estado.filas = d.filas;
+    $("txtOrigen").textContent = "Origen: " + d.origen;
+    $("txtHora").textContent = "· Actualizado: " + new Date().toLocaleTimeString("es-PA", {hour:"2-digit", minute:"2-digit"});
+    vista("vistaPanel");
+    pintarPanel();
+  } catch (e) {
+    vista("vistaPanel");
+    aviso("error", e.message || String(e));
+  }
+}
+
+/* ---------- Arranque ---------- */
+(async function(){
+  document.title = CONFIG.titulo; $("titulo").textContent = CONFIG.titulo;
+  $("buscar").oninput = pintarTabla; $("filtroEstado").onchange = pintarTabla;
+  $("btnRefrescar").onclick = () => { aviso(); cargarDatos(); };
+
+  if (esDemo()) {
+    aviso("demo", configPendiente()
+      ? "<b>Modo demo.</b> Estos son datos de ejemplo. Para conectar con SharePoint, pega el ID de aplicación y el ID de directorio en el bloque CONFIG del archivo."
+      : "<b>Modo demo.</b> Estos son datos de ejemplo. Quita <code>?demo</code> de la dirección para ver los datos reales.");
+    pintarUsuario(); cargarDatos(); return;
+  }
+  try {
+    cargando("Conectando con Microsoft…");
+    await iniciarMsal();
+    pintarUsuario();
+    $("btnLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES });
+    if (!cuenta) { vista("vistaLogin"); return; }
+    await cargarDatos();
+  } catch (e) {
+    vista("vistaLogin");
+    aviso("error", esc(e.message || e));
+  }
+})();
+</script>
+</body>
+</html>
