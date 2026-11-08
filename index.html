@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Panel de datos · SharePoint</title>
+<title>Archivos · SharePoint</title>
 <style>
-  :root{--bg:#f4f5f7;--card:#ffffff;--text:#16213a;--muted:#5a6478;--line:#e1e5ec;--accent:#2557d6;--accent-soft:#e8eefc;--ok:#1d7a4f;--warn:#a15c07;--bad:#b42318}
+  :root{--bg:#f4f5f7;--card:#ffffff;--text:#16213a;--muted:#5a6478;--line:#e1e5ec;--accent:#2557d6;--accent-soft:#e8eefc;--ok:#1d7a4f;--bad:#b42318}
   *{box-sizing:border-box}
   body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
   header{background:var(--card);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -21,6 +21,10 @@
   .banner{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;line-height:1.5}
   .banner.demo{background:#fff6e5;color:#6b4300;border:1px solid #f3d9a4}
   .banner.error{background:#fdecea;color:var(--bad);border:1px solid #f5c2bd}
+  .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:15px;margin-bottom:6px}
+  .crumbs a{color:var(--accent);text-decoration:none;cursor:pointer}
+  .crumbs a:hover{text-decoration:underline}
+  .crumbs .sep{color:var(--muted)}
   .meta{color:var(--muted);font-size:13px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
   .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
@@ -29,19 +33,24 @@
   .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:16px}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
   .panel h2{font-size:15px;margin:0 0 12px;font-weight:600}
-  .bar{display:grid;grid-template-columns:130px 1fr 90px;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+  .bar{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
   .bar .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bar .track{background:#eef1f6;border-radius:6px;height:14px;overflow:hidden}
   .bar .fill{background:var(--accent);height:14px;border-radius:6px}
   .bar .num{text-align:right;color:var(--muted)}
   .tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
-  input,select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text)}
-  input{min-width:220px}
+  input{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);min-width:260px}
   .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
-  table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
-  th{background:#f7f8fa;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0}
-  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:#fff}
+  th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{background:#f7f8fa;color:var(--muted);font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;font-size:13px}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+  td.nombre a{color:var(--text);text-decoration:none;cursor:pointer}
+  td.nombre a:hover{color:var(--accent);text-decoration:underline}
+  .tipo{display:inline-block;min-width:44px;text-align:center;font-size:11px;font-weight:600;padding:2px 6px;border-radius:5px;margin-right:10px;background:#eef1f6;color:var(--muted)}
+  .tipo.carpeta{background:#fff1d6;color:#8a5a00}.tipo.pdf{background:#fde8e7;color:#b42318}.tipo.excel{background:#e3f4ec;color:#1d7a4f}
+  .tipo.word{background:#e8eefc;color:#2557d6}.tipo.ppt{background:#fdeee3;color:#a4400b}.tipo.img{background:#f1e8fd;color:#6b3fb5}
+  .ruta{color:var(--muted);font-size:12px}
   .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;text-align:center}
   .center p{color:var(--muted);max-width:460px;line-height:1.6;margin:0}
   .hidden{display:none}
@@ -51,15 +60,15 @@
 </head>
 <body>
 <header>
-  <h1 id="titulo">Panel de datos</h1>
+  <h1 id="titulo">Archivos</h1>
   <div class="user" id="userbox"></div>
 </header>
 <main>
   <div id="banner"></div>
 
   <section id="vistaLogin" class="center hidden">
-    <h2 style="margin:0">Inicia sesión para ver los datos</h2>
-    <p>Usa tu cuenta de Microsoft de la empresa. Los datos se leen directo de SharePoint y solo ves lo que tu cuenta tiene permitido.</p>
+    <h2 style="margin:0">Inicia sesión para ver los archivos</h2>
+    <p>Usa tu cuenta de Microsoft de la empresa. Los archivos se leen directo de SharePoint y solo ves lo que tu cuenta tiene permitido.</p>
     <button class="primary" id="btnLogin">Iniciar sesión con Microsoft</button>
   </section>
 
@@ -69,6 +78,7 @@
   </section>
 
   <section id="vistaPanel" class="hidden">
+    <div class="crumbs" id="crumbs"></div>
     <div class="meta">
       <span id="txtOrigen"></span>
       <span id="txtHora"></span>
@@ -76,14 +86,13 @@
     </div>
     <div class="kpis" id="kpis"></div>
     <div class="grid2">
-      <div class="panel" id="panelEstado"><h2 id="tEstado">Por estado</h2><div id="barEstado"></div></div>
-      <div class="panel" id="panelGrupo"><h2 id="tGrupo">Por grupo</h2><div id="barGrupo"></div></div>
+      <div class="panel"><h2>Archivos por tipo</h2><div id="barTipo"></div></div>
+      <div class="panel"><h2>Modificados por</h2><div id="barPersona"></div></div>
     </div>
     <div class="panel">
-      <h2>Registros</h2>
       <div class="tools">
-        <input type="search" id="buscar" placeholder="Buscar en todos los campos">
-        <select id="filtroEstado"></select>
+        <input type="search" id="buscar" placeholder="Filtrar en esta carpeta">
+        <button id="btnBuscarTodo">Buscar en toda la biblioteca</button>
         <span id="txtConteo" style="color:var(--muted);font-size:13px"></span>
       </div>
       <div class="tablewrap"><table id="tabla"></table></div>
@@ -97,41 +106,45 @@
 const CONFIG = {
   clientId: "22711e30-33c7-449a-a937-c2c06e483996",   // Dashboard Casos Prueba · Id. de aplicación (cliente)
   tenantId: "0ff454c3-16d0-4731-b6f0-19fecd1cb745",   // Rapi Préstamos S A · Id. de directorio (inquilino)
-  sitio: "rapiprestamospty.sharepoint.com/sites/TecnologaRapiPrestamos", // dirección del sitio de SharePoint, sin https://
-  lista: "Casos prueba",                        // nombre de la Lista, tal como se ve en SharePoint
-  campos: {                                     // nombres de columna tal como se ven en la Lista
-    estado: "Estado",
-    monto: "Monto (USD)",
-    fecha: "Fecha de inicio",
-    agrupar: "Provincia"
-  },
-  titulo: "RapiPréstamos · Panel de datos"
+  sitio: "rapiprestamospty.sharepoint.com/sites/TecnologaRapiPrestamos", // dirección del sitio, sin https://
+  biblioteca: "",          // vacío = la biblioteca principal del sitio (Documentos)
+  titulo: "RapiPréstamos · Archivos"
 };
 /* ========================================================= */
 
 const SCOPES = ["Sites.Read.All"];
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const MSAL_URL = "https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.30.0/lib/msal-browser.min.js";
-const OCULTAS = new Set(["ContentType","Attachments","Edit","LinkTitleNoMenu","LinkTitle","DocIcon","ItemChildCount","FolderChildCount","_ColorTag","ComplianceAssetId","AppAuthor","AppEditor","_UIVersionString"]);
+const CAMPOS = "id,name,size,webUrl,lastModifiedDateTime,lastModifiedBy,folder,file,parentReference";
 
 const $ = id => document.getElementById(id);
 const fmtNum = new Intl.NumberFormat("es-PA");
-const fmtUSD = new Intl.NumberFormat("es-PA", {style:"currency", currency:"USD", currencyDisplay:"narrowSymbol", maximumFractionDigits:0});
-let msalApp = null, cuenta = null;
-let estado = { columnas: [], filas: [], orden: null, desc: false };
+let msalApp = null, cuenta = null, drive = null;
+let estado = { ruta: [], items: [], busqueda: null, orden: "name", desc: false };
 
 function esc(v){ return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function vista(nombre){ ["vistaLogin","vistaCargando","vistaPanel"].forEach(v => $(v).classList.toggle("hidden", v !== nombre)); }
-function cargando(txt){ $("txtCargando").textContent = txt; vista("vistaCargando"); }
+function vista(n){ ["vistaLogin","vistaCargando","vistaPanel"].forEach(v => $(v).classList.toggle("hidden", v !== n)); }
+function cargando(t){ $("txtCargando").textContent = t; vista("vistaCargando"); }
 function aviso(tipo, html){ $("banner").innerHTML = html ? `<div class="banner ${tipo}">${html}</div>` : ""; }
-function configPendiente(){ return CONFIG.clientId.startsWith("PEGA-") || CONFIG.tenantId.startsWith("PEGA-"); }
-function esDemo(){ return new URLSearchParams(location.search).has("demo") || configPendiente(); }
+function esDemo(){ return new URLSearchParams(location.search).has("demo"); }
+function tamano(b){ if (b == null) return ""; const u = ["B","KB","MB","GB","TB"]; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return (i ? b.toFixed(1) : b) + " " + u[i]; }
+function fecha(iso){ const d = new Date(iso); if (isNaN(d)) return ""; const p = x => String(x).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function persona(it){ return (it.lastModifiedBy && it.lastModifiedBy.user && it.lastModifiedBy.user.displayName) || "—"; }
+function tipoDe(it){
+  if (it.folder) return ["carpeta", "Carpeta"];
+  const ext = (it.name.includes(".") ? it.name.split(".").pop() : "").toLowerCase();
+  if (ext === "pdf") return ["pdf", "PDF"];
+  if (["xlsx","xls","xlsm","csv"].includes(ext)) return ["excel", "Excel"];
+  if (["docx","doc"].includes(ext)) return ["word", "Word"];
+  if (["pptx","ppt"].includes(ext)) return ["ppt", "PowerPoint"];
+  if (["jpg","jpeg","png","gif","webp","heic"].includes(ext)) return ["img", "Imagen"];
+  return ["otro", ext ? ext.toUpperCase() : "Otro"];
+}
 
 /* ---------- Inicio de sesión (MSAL) ---------- */
 function cargarScript(src){
   return new Promise((ok, mal) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => mal(new Error("No se pudo cargar la librería de inicio de sesión de Microsoft. Revisa tu conexión.")); document.head.appendChild(s); });
 }
-
 async function iniciarMsal(){
   await cargarScript(MSAL_URL);
   msalApp = new msal.PublicClientApplication({
@@ -142,17 +155,13 @@ async function iniciarMsal(){
   const resp = await msalApp.handleRedirectPromise();
   cuenta = (resp && resp.account) || msalApp.getAllAccounts()[0] || null;
 }
-
 async function token(){
-  try {
-    const r = await msalApp.acquireTokenSilent({ scopes: SCOPES, account: cuenta });
-    return r.accessToken;
-  } catch (e) {
+  try { return (await msalApp.acquireTokenSilent({ scopes: SCOPES, account: cuenta })).accessToken; }
+  catch (e) {
     if (e instanceof msal.InteractionRequiredAuthError) { await msalApp.acquireTokenRedirect({ scopes: SCOPES, account: cuenta }); return new Promise(() => {}); }
     throw e;
   }
 }
-
 function pintarUsuario(){
   if (esDemo()) { $("userbox").innerHTML = `<span class="pill">Modo demo</span>`; return; }
   if (!cuenta) { $("userbox").innerHTML = ""; return; }
@@ -162,157 +171,141 @@ function pintarUsuario(){
 
 /* ---------- Microsoft Graph ---------- */
 async function graph(url){
-  const t = await token();
-  const r = await fetch(url.startsWith("http") ? url : GRAPH + url, { headers: { Authorization: "Bearer " + t } });
+  const r = await fetch(url.startsWith("http") ? url : GRAPH + url, { headers: { Authorization: "Bearer " + await token() } });
   if (r.ok) return r.json();
-  let detalle = ""; try { detalle = (await r.json()).error.message; } catch (e) {}
-  if (r.status === 401 || r.status === 403) throw new Error(`Sin permiso para leer SharePoint (${r.status}). Revisa que el administrador haya concedido el permiso Sites.Read.All y que tu cuenta tenga acceso al sitio. ${esc(detalle)}`);
-  if (r.status === 404) throw new Error(`No encontré el sitio o la lista (404). Revisa "sitio" y "lista" en CONFIG. ${esc(detalle)}`);
-  throw new Error(`Error ${r.status} al consultar Microsoft: ${esc(detalle)}`);
+  let d = ""; try { d = (await r.json()).error.message; } catch (e) {}
+  if (r.status === 401 || r.status === 403) throw new Error(`Sin permiso (${r.status}). Revisa que tu cuenta tenga acceso a este sitio. ${d}`);
+  if (r.status === 404) throw new Error(`No encontré el sitio o la carpeta (404). Revisa "sitio" en CONFIG. ${d}`);
+  throw new Error(`Error ${r.status} al consultar Microsoft: ${d}`);
 }
-
-async function leerSharePoint(){
+async function todas(url){
+  const out = [];
+  while (url) { const p = await graph(url); out.push(...(p.value || [])); url = p["@odata.nextLink"] || null; }
+  return out;
+}
+async function abrirBiblioteca(){
   const limpio = CONFIG.sitio.replace(/^https?:\/\//, "").replace(/\/+$/, "");
   const [host, ...resto] = limpio.split("/");
   cargando("Buscando el sitio de SharePoint…");
   const sitio = await graph(resto.length ? `/sites/${host}:/${resto.join("/")}` : `/sites/${host}`);
-
-  cargando("Buscando la lista…");
-  const listas = await graph(`/sites/${sitio.id}/lists?$select=id,displayName,name`);
-  const buscada = CONFIG.lista.trim().toLowerCase();
-  const lista = (listas.value || []).find(l => (l.displayName || "").toLowerCase() === buscada || (l.name || "").toLowerCase() === buscada);
-  if (!lista) throw new Error(`En el sitio no hay una lista llamada "${esc(CONFIG.lista)}". Listas disponibles: ${(listas.value || []).map(l => esc(l.displayName)).join(", ") || "ninguna"}.`);
-
-  const cols = await graph(`/sites/${sitio.id}/lists/${lista.id}/columns`);
-  const columnas = (cols.value || [])
-    .filter(c => !c.hidden && !OCULTAS.has(c.name) && (!c.readOnly || c.name === "Title"))
-    .map(c => ({ clave: c.name, nombre: c.displayName, tipo: c.number || c.currency ? "num" : c.dateTime ? "fecha" : "texto" }));
-
-  cargando("Leyendo los registros…");
-  const filas = [];
-  let url = `/sites/${sitio.id}/lists/${lista.id}/items?expand=fields&$top=500`;
-  while (url) {
-    const pagina = await graph(url);
-    (pagina.value || []).forEach(it => filas.push(it.fields || {}));
-    url = pagina["@odata.nextLink"] || null;
-    if (url) cargando(`Leyendo los registros… (${fmtNum.format(filas.length)})`);
+  if (CONFIG.biblioteca) {
+    const drives = await graph(`/sites/${sitio.id}/drives?$select=id,name`);
+    drive = (drives.value || []).find(d => d.name.toLowerCase() === CONFIG.biblioteca.toLowerCase());
+    if (!drive) throw new Error(`No encontré la biblioteca "${CONFIG.biblioteca}". Disponibles: ${(drives.value || []).map(d => d.name).join(", ")}.`);
+  } else {
+    drive = await graph(`/sites/${sitio.id}/drive?$select=id,name`);
   }
-  return { columnas, filas, origen: `${lista.displayName} · ${limpio}` };
+  return `${sitio.displayName || limpio} · ${drive.name}`;
+}
+async function leerCarpeta(id){
+  if (esDemo()) return demoHijos(id);
+  return todas(`/drives/${drive.id}/items/${id}/children?$top=200&$select=${CAMPOS}`);
+}
+async function buscarTodo(q){
+  if (esDemo()) return demoTodos().filter(i => i.name.toLowerCase().includes(q.toLowerCase()));
+  const safe = q.replace(/'/g, "''");
+  return todas(`/drives/${drive.id}/root/search(q='${encodeURIComponent(safe)}')?$top=200&$select=${CAMPOS}`);
 }
 
-/* ---------- Datos de ejemplo (modo demo) ---------- */
-function datosDemo(){
-  const columnas = [
-    {clave:"Codigo",nombre:"Código",tipo:"texto"},{clave:"Cliente",nombre:"Cliente",tipo:"texto"},
-    {clave:"Propiedad",nombre:"Propiedad",tipo:"texto"},{clave:"Provincia",nombre:"Provincia",tipo:"texto"},
-    {clave:"Estado",nombre:"Estado",tipo:"texto"},{clave:"Fechadeinicio",nombre:"Fecha de inicio",tipo:"fecha"},
-    {clave:"Monto_x0028_USD_x0029_",nombre:"Monto (USD)",tipo:"num"},{clave:"Responsable",nombre:"Responsable",tipo:"texto"}];
-  const raw = [
-    ["C-001","Cliente Prueba 1","Finca 1021","Chiriquí","En trámite","2026-03-04",45000,"Abogado A"],
-    ["C-002","Cliente Prueba 2","Lote 7","Chiriquí","Audiencia","2026-04-15",28000,"Abogado B"],
-    ["C-003","Cliente Prueba 3","Finca 3388","Panamá","Sentencia","2025-11-20",62000,"Abogado A"],
-    ["C-004","Cliente Prueba 4","Casa 12-B","Panamá Oeste","En trámite","2026-06-02",85000,"Abogado C"],
-    ["C-005","Cliente Prueba 5","Lote 22","Veraguas","En trámite","2026-07-18",19500,"Abogado B"],
-    ["C-006","Cliente Prueba 6","Finca 5540","Coclé","Audiencia","2026-08-09",37000,"Abogado A"],
-    ["C-007","Cliente Prueba 7","Local 3","Panamá","Cerrado","2025-09-01",54000,"Abogado C"],
-    ["C-008","Cliente Prueba 8","Finca 7712","Chiriquí","En trámite","2026-10-12",41000,"Abogado B"]];
-  const filas = raw.map(r => Object.fromEntries(columnas.map((c, i) => [c.clave, r[i]])));
-  return { columnas, filas, origen: "Datos de ejemplo (Casos_prueba.xlsx)" };
+/* ---------- Datos de ejemplo (?demo) ---------- */
+const DEMO = {
+  root: [["f1","Proyectos M&CAPITAL",true],["f2","Avalúos",true],["a1","Inventario de servidores.xlsx"],["a2","Plan de contingencia.docx"]],
+  f1: [["f3","Legal",true],["a3","Presentación MYA.pptx"],["a4","Reporte Mensual Pantera.pdf"],["a5","Cartera propiedades.xlsx"]],
+  f2: [["a6","Avalúo Finca 1021.pdf"],["a7","Avalúo Lote 7.pdf"],["a8","Foto fachada.jpg"]],
+  f3: [["a9","Contrato modelo.docx"],["a10","Casos legales.xlsx"]]
+};
+function demoItem([id, name, carpeta], i){
+  const d = new Date(Date.now() - (i * 9 + id.length * 5) * 864e5).toISOString();
+  return { id, name, webUrl: "#", lastModifiedDateTime: d, lastModifiedBy: { user: { displayName: i % 2 ? "Javier Romero" : "Martina" } },
+    size: carpeta ? 4200000 + i * 900000 : 80000 + i * 210000, folder: carpeta ? { childCount: (DEMO[id] || []).length } : undefined, file: carpeta ? undefined : {} };
 }
+function demoHijos(id){ return (DEMO[id] || []).map(demoItem); }
+function demoTodos(){ return Object.values(DEMO).flat().map(demoItem); }
 
-/* ---------- Cálculos y pintado ---------- */
-function claveDe(nombre){ const c = estado.columnas.find(c => c.nombre.toLowerCase() === String(nombre || "").toLowerCase()); return c ? c.clave : null; }
-function numero(v){ const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : null; }
-function fecha(v){ if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; }
-function mostrar(col, v){
-  if (v === null || v === undefined || v === "") return "";
-  if (col.tipo === "fecha") { const d = fecha(v); return d ? [d.getUTCDate(), d.getUTCMonth() + 1].map(x => String(x).padStart(2, "0")).join("/") + "/" + d.getUTCFullYear() : esc(v); }
-  if (col.tipo === "num") { const n = numero(v); return n === null ? esc(v) : fmtNum.format(n); }
-  if (typeof v === "object") return esc(Array.isArray(v) ? v.map(x => x.LookupValue ?? x).join(", ") : (v.LookupValue ?? JSON.stringify(v)));
-  return esc(v);
+/* ---------- Pintado ---------- */
+function pintarCrumbs(){
+  const partes = [{ id: "root", name: drive ? drive.name : "Documentos" }, ...estado.ruta];
+  $("crumbs").innerHTML = partes.map((p, i) => i === partes.length - 1 && !estado.busqueda
+    ? `<b>${esc(p.name)}</b>` : `<a data-i="${i}">${esc(p.name)}</a>`).join(`<span class="sep">›</span>`)
+    + (estado.busqueda ? `<span class="sep">›</span><b>Resultados de “${esc(estado.busqueda)}”</b>` : "");
+  $("crumbs").querySelectorAll("a").forEach(a => a.onclick = () => irA(+a.dataset.i));
 }
-function contarPor(clave, sumarClave){
-  const m = new Map();
-  estado.filas.forEach(f => { const k = String(f[clave] ?? "(vacío)") || "(vacío)"; const add = sumarClave ? (numero(f[sumarClave]) || 0) : 1; m.set(k, (m.get(k) || 0) + add); });
-  return [...m.entries()].sort((a, b) => b[1] - a[1]);
-}
-function barras(cont, pares, esDinero){
+function barras(cont, pares){
   const max = Math.max(1, ...pares.map(p => p[1]));
-  $(cont).innerHTML = pares.slice(0, 10).map(([n, v]) =>
-    `<div class="bar"><span class="name" title="${esc(n)}">${esc(n)}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div><span class="num">${esDinero ? fmtUSD.format(v) : fmtNum.format(v)}</span></div>`).join("") || `<p style="color:var(--muted)">Sin datos</p>`;
+  $(cont).innerHTML = pares.slice(0, 8).map(([n, v]) =>
+    `<div class="bar"><span class="name" title="${esc(n)}">${esc(n)}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div><span class="num">${fmtNum.format(v)}</span></div>`).join("")
+    || `<p style="color:var(--muted);margin:0">Sin archivos en esta carpeta</p>`;
 }
+function contar(lista, fn){ const m = new Map(); lista.forEach(x => { const k = fn(x); m.set(k, (m.get(k) || 0) + 1); }); return [...m.entries()].sort((a, b) => b[1] - a[1]); }
 
 function pintarPanel(){
-  const kEstado = claveDe(CONFIG.campos.estado), kMonto = claveDe(CONFIG.campos.monto), kFecha = claveDe(CONFIG.campos.fecha), kGrupo = claveDe(CONFIG.campos.agrupar);
-  const total = estado.filas.length;
-  const montos = kMonto ? estado.filas.map(f => numero(f[kMonto])).filter(n => n !== null) : [];
-  const suma = montos.reduce((a, b) => a + b, 0);
+  const items = estado.items, archivos = items.filter(i => !i.folder), carpetas = items.filter(i => i.folder);
   const hace30 = Date.now() - 30 * 864e5;
-  const recientes = estado.filas.filter(f => { const d = fecha(kFecha ? f[kFecha] : f.Created); return d && d.getTime() >= hace30; }).length;
-
-  const kpis = [["Total de registros", fmtNum.format(total)]];
-  if (kMonto) kpis.push([`Suma de ${CONFIG.campos.monto}`, fmtUSD.format(suma)], [`Promedio de ${CONFIG.campos.monto}`, fmtUSD.format(montos.length ? suma / montos.length : 0)]);
-  kpis.push([kFecha ? `Últimos 30 días (${CONFIG.campos.fecha})` : "Creados en los últimos 30 días", fmtNum.format(recientes)]);
-  $("kpis").innerHTML = kpis.map(([l, v]) => `<div class="kpi"><div class="label">${esc(l)}</div><div class="value">${v}</div></div>`).join("");
-
-  $("panelEstado").classList.toggle("hidden", !kEstado);
-  if (kEstado) { $("tEstado").textContent = `Registros por ${CONFIG.campos.estado}`; barras("barEstado", contarPor(kEstado), false); }
-  $("panelGrupo").classList.toggle("hidden", !kGrupo);
-  if (kGrupo) { $("tGrupo").textContent = kMonto ? `${CONFIG.campos.monto} por ${CONFIG.campos.agrupar}` : `Registros por ${CONFIG.campos.agrupar}`; barras("barGrupo", contarPor(kGrupo, kMonto), !!kMonto); }
-
-  const sel = $("filtroEstado");
-  sel.classList.toggle("hidden", !kEstado);
-  if (kEstado) sel.innerHTML = `<option value="">Todos (${esc(CONFIG.campos.estado)})</option>` + contarPor(kEstado).map(([n]) => `<option>${esc(n)}</option>`).join("");
+  const kpis = [
+    ["Carpetas", fmtNum.format(carpetas.length)],
+    ["Archivos", fmtNum.format(archivos.length)],
+    ["Tamaño total", tamano(items.reduce((a, i) => a + (i.size || 0), 0))],
+    ["Modificados en 30 días", fmtNum.format(items.filter(i => new Date(i.lastModifiedDateTime).getTime() >= hace30).length)]
+  ];
+  $("kpis").innerHTML = kpis.map(([l, v]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("");
+  barras("barTipo", contar(archivos, i => tipoDe(i)[1]));
+  barras("barPersona", contar(items, persona));
+  pintarCrumbs();
   pintarTabla();
 }
-
 function pintarTabla(){
-  const kEstado = claveDe(CONFIG.campos.estado);
-  const q = $("buscar").value.trim().toLowerCase(), fe = $("filtroEstado").value;
-  let filas = estado.filas.filter(f =>
-    (!fe || String(f[kEstado] ?? "(vacío)") === fe) &&
-    (!q || estado.columnas.some(c => String(f[c.clave] ?? "").toLowerCase().includes(q))));
-  if (estado.orden) {
-    const col = estado.columnas.find(c => c.clave === estado.orden);
-    filas = filas.slice().sort((a, b) => {
-      const x = a[col.clave], y = b[col.clave];
-      const r = col.tipo === "num" ? (numero(x) ?? -Infinity) - (numero(y) ?? -Infinity) : String(x ?? "").localeCompare(String(y ?? ""), "es", {numeric:true});
-      return estado.desc ? -r : r;
-    });
-  }
-  const tope = 300;
-  $("txtConteo").textContent = `${fmtNum.format(filas.length)} registros` + (filas.length > tope ? ` (se muestran los primeros ${tope})` : "");
-  const cab = estado.columnas.map(c => `<th data-k="${esc(c.clave)}">${esc(c.nombre)}${estado.orden === c.clave ? (estado.desc ? " ▼" : " ▲") : ""}</th>`).join("");
-  const cuerpo = filas.slice(0, tope).map(f => `<tr>${estado.columnas.map(c => `<td class="${c.tipo === "num" ? "n" : ""}">${mostrar(c, f[c.clave])}</td>`).join("")}</tr>`).join("");
-  $("tabla").innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${cuerpo || `<tr><td colspan="${estado.columnas.length}" style="color:var(--muted)">Sin resultados</td></tr>`}</tbody>`;
-  $("tabla").querySelectorAll("th").forEach(th => th.onclick = () => { const k = th.dataset.k; estado.desc = estado.orden === k ? !estado.desc : false; estado.orden = k; pintarTabla(); });
+  const q = $("buscar").value.trim().toLowerCase();
+  let filas = estado.items.filter(i => !q || i.name.toLowerCase().includes(q));
+  const k = estado.orden, s = estado.desc ? -1 : 1;
+  filas.sort((a, b) => (!!b.folder - !!a.folder) || s * (k === "size" ? (a.size || 0) - (b.size || 0)
+    : k === "fecha" ? new Date(a.lastModifiedDateTime) - new Date(b.lastModifiedDateTime)
+    : k === "persona" ? persona(a).localeCompare(persona(b), "es") : a.name.localeCompare(b.name, "es", { numeric: true })));
+  $("txtConteo").textContent = `${fmtNum.format(filas.length)} elementos`;
+  const flecha = c => estado.orden === c ? (estado.desc ? " ▼" : " ▲") : "";
+  const cab = `<thead><tr><th data-k="name">Nombre${flecha("name")}</th><th data-k="fecha">Modificado${flecha("fecha")}</th><th data-k="persona">Modificado por${flecha("persona")}</th><th data-k="size" style="text-align:right">Tamaño${flecha("size")}</th></tr></thead>`;
+  const cuerpo = filas.map(i => {
+    const [cls, txt] = tipoDe(i);
+    const ruta = estado.busqueda && i.parentReference && i.parentReference.path ? `<div class="ruta">${esc(decodeURIComponent(i.parentReference.path.split("root:")[1] || "/"))}</div>` : "";
+    const enlace = i.folder ? `<a data-carpeta="${esc(i.id)}" data-nombre="${esc(i.name)}">${esc(i.name)}</a>` : `<a href="${esc(i.webUrl)}" target="_blank" rel="noopener">${esc(i.name)}</a>`;
+    return `<tr><td class="nombre"><span class="tipo ${cls}">${esc(txt)}</span>${enlace}${ruta}</td><td>${fecha(i.lastModifiedDateTime)}</td><td>${esc(persona(i))}</td><td class="n">${i.folder ? `${fmtNum.format(i.folder.childCount || 0)} elem. · ` : ""}${tamano(i.size)}</td></tr>`;
+  }).join("");
+  $("tabla").innerHTML = cab + `<tbody>${cuerpo || `<tr><td colspan="4" style="color:var(--muted)">Esta carpeta está vacía</td></tr>`}</tbody>`;
+  $("tabla").querySelectorAll("th").forEach(th => th.onclick = () => { const c = th.dataset.k; estado.desc = estado.orden === c ? !estado.desc : false; estado.orden = c; pintarTabla(); });
+  $("tabla").querySelectorAll("a[data-carpeta]").forEach(a => a.onclick = () => entrar(a.dataset.carpeta, a.dataset.nombre));
 }
 
-async function cargarDatos(){
+/* ---------- Navegación ---------- */
+async function mostrar(id){
   try {
-    const d = esDemo() ? datosDemo() : await leerSharePoint();
-    estado.columnas = d.columnas; estado.filas = d.filas;
-    $("txtOrigen").textContent = "Origen: " + d.origen;
-    $("txtHora").textContent = "· Actualizado: " + new Date().toLocaleTimeString("es-PA", {hour:"2-digit", minute:"2-digit"});
+    aviso();
+    estado.items = await leerCarpeta(id);
+    $("txtHora").textContent = "· Actualizado: " + new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
     vista("vistaPanel");
     pintarPanel();
-  } catch (e) {
-    vista("vistaPanel");
-    aviso("error", e.message || String(e));
-  }
+  } catch (e) { vista("vistaPanel"); aviso("error", esc(e.message || e)); }
+}
+function carpetaActual(){ return estado.ruta.length ? estado.ruta[estado.ruta.length - 1].id : "root"; }
+function entrar(id, name){ if (estado.busqueda) { estado.busqueda = null; estado.ruta = []; } estado.ruta.push({ id, name }); $("buscar").value = ""; mostrar(id); }
+function irA(i){ estado.busqueda = null; estado.ruta = estado.ruta.slice(0, i); $("buscar").value = ""; mostrar(carpetaActual()); }
+async function buscarEnTodo(){
+  const q = $("buscar").value.trim();
+  if (!q) { aviso("error", "Escribe algo en el cuadro para buscar en toda la biblioteca."); return; }
+  try { aviso(); estado.busqueda = q; estado.items = await buscarTodo(q); $("buscar").value = ""; vista("vistaPanel"); pintarPanel(); }
+  catch (e) { aviso("error", esc(e.message || e)); }
 }
 
 /* ---------- Arranque ---------- */
 (async function(){
   document.title = CONFIG.titulo; $("titulo").textContent = CONFIG.titulo;
-  $("buscar").oninput = pintarTabla; $("filtroEstado").onchange = pintarTabla;
-  $("btnRefrescar").onclick = () => { aviso(); cargarDatos(); };
+  $("buscar").oninput = pintarTabla;
+  $("buscar").onkeydown = e => { if (e.key === "Enter") buscarEnTodo(); };
+  $("btnBuscarTodo").onclick = buscarEnTodo;
+  $("btnRefrescar").onclick = () => estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual());
 
   if (esDemo()) {
-    aviso("demo", configPendiente()
-      ? "<b>Modo demo.</b> Estos son datos de ejemplo. Para conectar con SharePoint, pega el ID de aplicación y el ID de directorio en el bloque CONFIG del archivo."
-      : "<b>Modo demo.</b> Estos son datos de ejemplo. Quita <code>?demo</code> de la dirección para ver los datos reales.");
-    pintarUsuario(); cargarDatos(); return;
+    aviso("demo", "<b>Modo demo.</b> Son archivos de ejemplo. Quita <code>?demo</code> de la dirección para ver tus archivos reales.");
+    drive = { name: "Documentos" }; $("txtOrigen").textContent = "Origen: ejemplo";
+    pintarUsuario(); mostrar("root"); return;
   }
   try {
     cargando("Conectando con Microsoft…");
@@ -320,9 +313,10 @@ async function cargarDatos(){
     pintarUsuario();
     $("btnLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES });
     if (!cuenta) { vista("vistaLogin"); return; }
-    await cargarDatos();
+    $("txtOrigen").textContent = "Origen: " + await abrirBiblioteca();
+    await mostrar("root");
   } catch (e) {
-    vista("vistaLogin");
+    vista(cuenta ? "vistaPanel" : "vistaLogin");
     aviso("error", esc(e.message || e));
   }
 })();
