@@ -67,6 +67,9 @@
   .chartbox.alto{height:440px}
   .panel + .panel{margin-top:12px}
   select{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text)}
+  body.modo-pantera main{max-width:none;padding:0}
+  body.modo-pantera #banner:empty{display:none}
+  #frPantera{display:block;width:100%;border:0;min-height:calc(100vh - 110px);background:transparent}
   .neg{color:var(--bad)}
   .pos{color:var(--ok)}
 </style>
@@ -117,7 +120,7 @@
   </section>
 
   <section id="vistaPantera" class="hidden">
-    <iframe id="frPantera" title="Reporte Pantera" style="width:100%;height:calc(100vh - 150px);min-height:600px;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>
+    <iframe id="frPantera" title="Reporte Pantera" scrolling="no"></iframe>
   </section>
 </main>
 
@@ -349,8 +352,20 @@ function cambiarPestana(t){
   pestana = t;
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
   vista(t === "pantera" ? "vistaPantera" : "vistaPanel");
+  document.body.classList.toggle("modo-pantera", t === "pantera");
   const fr = $("frPantera");
-  if (t === "pantera" && !fr.src) fr.src = "pantera.html" + (esDemo() ? "?demo" : "");
+  if (t === "pantera" && !fr.src) {
+    // El reporte se muestra a lo alto completo: la página entera se desplaza, sin barra interna
+    fr.onload = () => {
+      const doc = fr.contentDocument; if (!doc) return;
+      const ajustar = () => { fr.style.height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight) + "px"; };
+      ajustar();
+      new ResizeObserver(ajustar).observe(doc.body);
+      new MutationObserver(ajustar).observe(doc.body, { childList: true, subtree: true, attributes: true });
+      fr.contentWindow.addEventListener("resize", ajustar);
+    };
+    fr.src = "pantera.html" + (esDemo() ? "?demo" : "");
+  }
 }
 
 /* ---------- Arranque ---------- */
