@@ -71,6 +71,21 @@
   body.modo-pantera #banner:empty{display:none}
   #frPantera{display:block;width:100%;border:0;min-height:calc(100vh - 110px);background:transparent}
   .neg{color:var(--bad)}
+  #visor{position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:stretch;justify-content:center;z-index:50;padding:24px}
+  #visor.hidden{display:none}
+  .vbox{background:var(--card);border-radius:14px;width:100%;max-width:1400px;display:flex;flex-direction:column;overflow:hidden}
+  .vhead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .vhead h2{font-size:16px;margin:0;flex:1;min-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vestado{padding:8px 16px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .vbar{flex:1;min-width:120px;max-width:320px;height:6px;background:#eef1f6;border-radius:4px;overflow:hidden}
+  .vbar div{height:6px;background:var(--accent);width:0}
+  .vpags{overflow:auto;padding:16px;display:flex;flex-direction:column;gap:16px;flex:1}
+  .vpag{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;border:1px solid var(--line);border-radius:10px;padding:12px}
+  .vpag canvas{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .vpag pre{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;margin:0;max-height:70vh;overflow:auto}
+  .vtag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#eef1f6;color:var(--muted)}
+  .vtag.ocr{background:#fdeee3;color:#a4400b}.vtag.txt{background:#e3f4ec;color:#1d7a4f}
+  @media (max-width:800px){.vpag{grid-template-columns:1fr}}
   .pos{color:var(--ok)}
 </style>
 </head>
@@ -118,6 +133,19 @@
       <div class="tablewrap"><table id="tabla"></table></div>
     </div>
   </section>
+
+  <div id="visor" class="hidden" role="dialog" aria-modal="true" aria-labelledby="vTitulo">
+    <div class="vbox">
+      <div class="vhead">
+        <h2 id="vTitulo">Documento</h2>
+        <button id="vBajar">Descargar texto</button>
+        <a id="vAbrir" target="_blank" rel="noopener"><button>Abrir en SharePoint</button></a>
+        <button id="vCerrar">Cerrar</button>
+      </div>
+      <div class="vestado"><span id="vEstado">Preparando…</span><div class="vbar"><div id="vBarra"></div></div></div>
+      <div class="vpags" id="vPags"></div>
+    </div>
+  </div>
 
   <section id="vistaPantera" class="hidden">
     <iframe id="frPantera" title="Reporte Pantera" scrolling="no"></iframe>
@@ -296,12 +324,103 @@ function pintarTabla(){
   const cuerpo = filas.map(i => {
     const [cls, txt] = tipoDe(i);
     const ruta = estado.busqueda && i.parentReference && i.parentReference.path ? `<div class="ruta">${esc(decodeURIComponent(i.parentReference.path.split("root:")[1] || "/"))}</div>` : "";
-    const enlace = i.folder ? `<a data-carpeta="${esc(i.id)}" data-nombre="${esc(i.name)}">${esc(i.name)}</a>` : `<a href="${esc(i.webUrl)}" target="_blank" rel="noopener">${esc(i.name)}</a>`;
+    const enlace = i.folder ? `<a data-carpeta="${esc(i.id)}" data-nombre="${esc(i.name)}">${esc(i.name)}</a>`
+      : /\.pdf$/i.test(i.name) ? `<a data-pdf="${esc(i.id)}" title="Leer el documento (con OCR si es escaneado)">${esc(i.name)}</a>`
+      : `<a href="${esc(i.webUrl)}" target="_blank" rel="noopener">${esc(i.name)}</a>`;
     return `<tr><td class="nombre"><span class="tipo ${cls}">${esc(txt)}</span>${enlace}${ruta}</td><td>${fecha(i.lastModifiedDateTime)}</td><td>${esc(persona(i))}</td><td class="n">${i.folder ? `${fmtNum.format(i.folder.childCount || 0)} elem. · ` : ""}${tamano(i.size)}</td></tr>`;
   }).join("");
   $("tabla").innerHTML = cab + `<tbody>${cuerpo || `<tr><td colspan="4" style="color:var(--muted)">Esta carpeta está vacía</td></tr>`}</tbody>`;
   $("tabla").querySelectorAll("th").forEach(th => th.onclick = () => { const c = th.dataset.k; estado.desc = estado.orden === c ? !estado.desc : false; estado.orden = c; pintarTabla(); });
   $("tabla").querySelectorAll("a[data-carpeta]").forEach(a => a.onclick = () => entrar(a.dataset.carpeta, a.dataset.nombre));
+  $("tabla").querySelectorAll("a[data-pdf]").forEach(a => a.onclick = () => abrirLector(estado.items.find(x => x.id === a.dataset.pdf)));
+}
+
+/* ---------- Lector de PDF con OCR automático ----------
+   Al abrir un PDF: cada página se lee con su texto; si la página no trae texto (escaneada),
+   se le hace OCR en español dentro del navegador con Tesseract.js. Nada sale de tu computadora. */
+const LECTOR = {
+  pdfjs: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  pdfWorker: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  tesseract: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js",
+  tessWorker: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
+  tessCore: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
+  tessIdioma: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/spa@1.0.0/4.0.0_best_int",
+  minimoTexto: 25   // menos caracteres que esto en una página = página escaneada
+};
+const memoriaLectura = new Map();   // id+fecha → [{pagina, metodo, texto}]
+let lecturaActual = 0, ocrWorker = null;
+
+async function urlDescarga(item){
+  if (item["@microsoft.graph.downloadUrl"]) return item["@microsoft.graph.downloadUrl"];
+  if (esDemo()) return window.__demoPdfUrl || null;
+  const det = await graph(`/drives/${drive.id}/items/${item.id}`);
+  return det["@microsoft.graph.downloadUrl"];
+}
+async function trabajadorOCR(){
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract) await cargarScript(LECTOR.tesseract);
+  ocrWorker = await Tesseract.createWorker("spa", 1, { workerPath: LECTOR.tessWorker, corePath: LECTOR.tessCore, langPath: LECTOR.tessIdioma });
+  return ocrWorker;
+}
+function cerrarLector(){ lecturaActual++; $("visor").classList.add("hidden"); document.body.style.overflow = ""; }
+async function abrirLector(item){
+  if (!item) return;
+  const yo = ++lecturaActual, clave = item.id + "|" + item.lastModifiedDateTime;
+  $("vTitulo").textContent = item.name;
+  $("vAbrir").href = item.webUrl && item.webUrl !== "#" ? item.webUrl : "#";
+  $("vPags").innerHTML = ""; $("vBarra").style.width = "0";
+  $("visor").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  const estadoTxt = t => { if (yo === lecturaActual) $("vEstado").textContent = t; };
+  const resultado = [];
+  $("vBajar").onclick = () => {
+    const txt = resultado.map(r => `--- Página ${r.pagina} (${r.metodo}) ---\n${r.texto}`).join("\n\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
+    a.download = item.name.replace(/\.pdf$/i, "") + ".txt"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  try {
+    estadoTxt("Descargando el documento…");
+    if (!window.pdfjsLib) { await cargarScript(LECTOR.pdfjs); pdfjsLib.GlobalWorkerOptions.workerSrc = LECTOR.pdfWorker; }
+    const url = await urlDescarga(item);
+    if (!url) throw new Error("No se pudo obtener el archivo para leerlo.");
+    const datos = await (await fetch(url)).arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: datos }).promise;
+    const previo = memoriaLectura.get(clave);
+    let conOCR = 0;
+    for (let n = 1; n <= pdf.numPages; n++) {
+      if (yo !== lecturaActual) return;
+      const pag = await pdf.getPage(n);
+      const vista = pag.getViewport({ scale: 2 });
+      const lienzo = document.createElement("canvas"); lienzo.width = vista.width; lienzo.height = vista.height;
+      await pag.render({ canvasContext: lienzo.getContext("2d"), viewport: vista }).promise;
+      const bloque = document.createElement("div"); bloque.className = "vpag";
+      bloque.innerHTML = `<div></div><div><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b>Página ${n}</b><span class="vtag" data-tag>Leyendo…</span></div><pre></pre></div>`;
+      bloque.firstChild.appendChild(lienzo);
+      $("vPags").appendChild(bloque);
+      let texto, metodo;
+      if (previo && previo[n - 1]) ({ texto, metodo } = previo[n - 1]);
+      else {
+        const contenido = await pag.getTextContent();
+        texto = contenido.items.map(t => t.str + (t.hasEOL ? "\n" : " ")).join("").replace(/[ \t]+\n/g, "\n").trim();
+        metodo = "texto del PDF";
+        if (texto.replace(/\s/g, "").length < LECTOR.minimoTexto) {
+          estadoTxt(`Página ${n} de ${pdf.numPages}: es escaneada, leyendo con OCR…`);
+          const w = await trabajadorOCR();
+          if (yo !== lecturaActual) return;
+          texto = (await w.recognize(lienzo)).data.text.trim();
+          metodo = "OCR"; conOCR++;
+        }
+      }
+      resultado.push({ pagina: n, metodo, texto });
+      const tag = bloque.querySelector("[data-tag]"); tag.textContent = metodo === "OCR" ? "Leída con OCR" : "Texto del PDF"; tag.classList.add(metodo === "OCR" ? "ocr" : "txt");
+      bloque.querySelector("pre").textContent = texto || "(Esta página no tiene texto legible)";
+      $("vBarra").style.width = Math.round(n / pdf.numPages * 100) + "%";
+      estadoTxt(`Leídas ${n} de ${pdf.numPages} páginas`);
+    }
+    memoriaLectura.set(clave, resultado);
+    estadoTxt(`Listo: ${pdf.numPages} ${pdf.numPages === 1 ? "página" : "páginas"}` + (resultado.some(r => r.metodo === "OCR") ? ` · ${resultado.filter(r => r.metodo === "OCR").length} leídas con OCR` : " · el PDF ya traía texto"));
+  } catch (e) {
+    estadoTxt("No se pudo leer el documento: " + (e.message || e));
+  }
 }
 
 /* ---------- Navegación ---------- */
@@ -376,6 +495,9 @@ function cambiarPestana(t){
   $("btnBuscarTodo").onclick = buscarEnTodo;
   $("btnRefrescar").onclick = () => estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual());
   document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => cambiarPestana(b.dataset.tab));
+  $("vCerrar").onclick = cerrarLector;
+  $("visor").onclick = e => { if (e.target.id === "visor") cerrarLector(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("visor").classList.contains("hidden")) cerrarLector(); });
 
   if (esDemo()) {
     aviso("demo", "<b>Modo demo.</b> Son archivos de ejemplo. Quita <code>?demo</code> de la dirección para ver tus archivos reales.");
