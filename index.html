@@ -97,6 +97,9 @@
 <nav class="tabs hidden" id="tabs">
   <button data-tab="archivos" class="on">Archivos</button>
   <button data-tab="pantera">Pantera</button>
+  <span style="flex:1"></span>
+  <span id="pInfo" class="hidden" style="align-self:center;color:var(--muted);font-size:13px"></span>
+  <button id="pActualizar" class="hidden" style="align-self:center;border:1px solid var(--line);border-radius:8px;padding:7px 14px;margin:6px 0;color:var(--text);font-weight:600">↻ Actualizar</button>
 </nav>
 <main>
   <div id="banner"></div>
@@ -450,13 +453,13 @@ window.panelSharePoint = {
   get usuario(){ return esDemo() ? "demo" : (cuenta && cuenta.username) || ""; },
   carpeta: CONFIG.panteraCarpeta,
   async listarExcel(){
-    if (esDemo()) return (window.__demoPantera || []).map(a => ({ name: a.name, url: a["@microsoft.graph.downloadUrl"], ruta: "", modificado: a.lastModifiedDateTime }));
+    if (esDemo()) { const d = (window.__demoPantera || []).map(a => ({ name: a.name, url: a["@microsoft.graph.downloadUrl"], ruta: "", modificado: a.lastModifiedDateTime })); $("pInfo").textContent = `${d.length} archivos de ejemplo`; return d; }
     const salida = [];
     async function recorrer(ruta, nivel){
       const camino = ruta.split("/").map(encodeURIComponent).join("/");
       const hijos = await todas(`/drives/${drive.id}/root:/${camino}:/children?$top=200`);
       for (const h of hijos) {
-        if (h.folder && nivel < 3) await recorrer(ruta + "/" + h.name, nivel + 1);
+        if (h.folder && nivel < 4) await recorrer(ruta + "/" + h.name, nivel + 1);
         else if (h.file && /\.(xlsx|xlsm|xls)$/i.test(h.name) && !h.name.startsWith("~$"))
           salida.push({ name: h.name, url: h["@microsoft.graph.downloadUrl"], ruta, modificado: h.lastModifiedDateTime });
       }
@@ -465,6 +468,8 @@ window.panelSharePoint = {
     // Del más antiguo al más reciente: si el mismo reporte (deuda, valuación, Data Room…) está en
     // varias carpetas de meses, el último que se lee, y que queda, es el más reciente.
     salida.sort((a, b) => new Date(a.modificado) - new Date(b.modificado));
+    const carpetas = new Set(salida.map(x => x.ruta.slice(CONFIG.panteraCarpeta.length + 1)).filter(Boolean));
+    $("pInfo").textContent = `${salida.length} archivos de Excel` + (carpetas.size ? ` en ${carpetas.size} ${carpetas.size === 1 ? "carpeta" : "carpetas"}` : "") + ` · leídos ${new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}`;
     return salida;
   },
   salir(){ if (msalApp && cuenta) msalApp.logoutRedirect({ account: cuenta, postLogoutRedirectUri: location.origin + location.pathname }); }
@@ -475,6 +480,8 @@ function cambiarPestana(t){
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
   vista(t === "pantera" ? "vistaPantera" : "vistaPanel");
   document.body.classList.toggle("modo-pantera", t === "pantera");
+  $("pActualizar").classList.toggle("hidden", t !== "pantera");
+  $("pInfo").classList.toggle("hidden", t !== "pantera");
   const fr = $("frPantera");
   if (t === "pantera" && !fr.src) {
     // El reporte se muestra a lo alto completo: la página entera se desplaza, sin barra interna
@@ -499,6 +506,8 @@ function cambiarPestana(t){
   $("btnRefrescar").onclick = () => estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual());
   document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => cambiarPestana(b.dataset.tab));
   $("vCerrar").onclick = cerrarLector;
+  // Vuelve a leer la carpeta de SharePoint (meses o años nuevos) y redibuja el reporte Pantera
+  $("pActualizar").onclick = () => { const fr = $("frPantera"); $("pInfo").textContent = "Leyendo SharePoint…"; if (fr.contentWindow) fr.contentWindow.location.reload(); };
   $("visor").onclick = e => { if (e.target.id === "visor") cerrarLector(); };
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("visor").classList.contains("hidden")) cerrarLector(); });
 
