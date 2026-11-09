@@ -462,6 +462,9 @@ window.panelSharePoint = {
       }
     }
     await recorrer(CONFIG.panteraCarpeta, 0);
+    // Del más antiguo al más reciente: si el mismo reporte (deuda, valuación, Data Room…) está en
+    // varias carpetas de meses, el último que se lee, y que queda, es el más reciente.
+    salida.sort((a, b) => new Date(a.modificado) - new Date(b.modificado));
     return salida;
   },
   salir(){ if (msalApp && cuenta) msalApp.logoutRedirect({ account: cuenta, postLogoutRedirectUri: location.origin + location.pathname }); }
