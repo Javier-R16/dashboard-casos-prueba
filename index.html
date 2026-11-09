@@ -227,7 +227,15 @@ function pintarUsuario(){
   if (esDemo()) { $("userbox").innerHTML = `<span class="pill">Modo demo</span>`; return; }
   if (!cuenta) { $("userbox").innerHTML = ""; return; }
   $("userbox").innerHTML = `<span>Conectado: ${esc(cuenta.username)}</span><span class="pill ok">Sesión activa</span><button id="btnSalir">Cerrar sesión</button>`;
-  $("btnSalir").onclick = () => msalApp.logoutRedirect({ account: cuenta, postLogoutRedirectUri: location.origin + location.pathname });
+  $("btnSalir").onclick = salirDelPanel;
+}
+
+/* Cierra la sesión SOLO en este panel: borra el inicio de sesión guardado aquí, sin cerrar
+   Microsoft en el navegador (Outlook, SharePoint y Teams siguen abiertos). */
+async function salirDelPanel(){
+  try { if (msalApp && cuenta) await msalApp.logoutRedirect({ account: cuenta, onRedirectNavigate: () => false }); } catch (e) {}
+  try { Object.keys(localStorage).filter(k => k.includes(CONFIG.clientId) || k.startsWith("msal.")).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  location.replace(location.origin + location.pathname);
 }
 
 /* ---------- Microsoft Graph ---------- */
@@ -472,7 +480,7 @@ window.panelSharePoint = {
     $("pInfo").textContent = `${salida.length} archivos de Excel` + (carpetas.size ? ` en ${carpetas.size} ${carpetas.size === 1 ? "carpeta" : "carpetas"}` : "") + ` · leídos ${new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}`;
     return salida;
   },
-  salir(){ if (msalApp && cuenta) msalApp.logoutRedirect({ account: cuenta, postLogoutRedirectUri: location.origin + location.pathname }); }
+  salir(){ salirDelPanel(); }
 };
 
 function cambiarPestana(t){
@@ -520,7 +528,7 @@ function cambiarPestana(t){
     cargando("Conectando con Microsoft…");
     await iniciarMsal();
     pintarUsuario();
-    $("btnLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES });
+    $("btnLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES, prompt: "select_account" });
     if (!cuenta) { vista("vistaLogin"); return; }
     $("txtOrigen").textContent = "Origen: " + await abrirBiblioteca();
     await mostrar("root");
