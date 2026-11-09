@@ -138,6 +138,19 @@
   .bar{grid-template-columns:110px 1fr 40px}
   .bar .fill{background:linear-gradient(90deg,var(--navy2),var(--teal))}
   .vacio{color:var(--muted);font-size:13px;margin:0;line-height:1.5}
+  .grid3{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:16px;margin-bottom:18px}
+  @media (max-width:1100px){.grid3{grid-template-columns:1fr}}
+  .grid3 .panel{border-radius:14px;border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .grid3 .chartbox{height:230px}
+  .grid3 .panel + .panel{margin-top:0}
+  .panel h2 small{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+  .reciente{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #eef1f5;cursor:pointer}
+  .reciente:last-child{border-bottom:0}
+  .reciente:hover .rn{color:var(--accent)}
+  .reciente .tipo{min-width:34px;height:34px;font-size:9px}
+  .reciente .rn{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .reciente .rm{font-size:12px;color:var(--muted)}
+  .reciente > div{min-width:0}
 </style>
 </head>
 <body>
@@ -181,14 +194,19 @@
       <div class="hero-meta"><span id="txtOrigen"></span><span id="txtHora"></span></div>
     </div>
     <div class="kpis" id="kpis"></div>
+    <div class="grid3" id="panorama">
+      <div class="panel"><h2>Tipos de archivo<small>toda la biblioteca</small></h2><div class="chartbox"><canvas id="cTipos"></canvas></div></div>
+      <div class="panel"><h2>Actividad por mes<small>archivos modificados</small></h2><div class="chartbox"><canvas id="cMeses"></canvas></div></div>
+      <div class="panel"><h2>Espacio por carpeta</h2><div class="chartbox"><canvas id="cEspacio"></canvas></div></div>
+    </div>
     <div class="layout">
       <div class="panel lista">
         <div class="lista-head"><h2>Contenido</h2><span id="txtConteo" style="color:var(--muted);font-size:13px"></span></div>
         <div class="tablewrap"><table id="tabla"></table></div>
       </div>
       <aside>
-        <div class="panel"><h2>Archivos por tipo</h2><div id="barTipo"></div></div>
-        <div class="panel"><h2>Modificados por</h2><div id="barPersona"></div></div>
+        <div class="panel"><h2>Modificados recientemente</h2><div id="recientes"><p class="vacio">Cargando…</p></div></div>
+        <div class="panel"><h2>Quién modifica más</h2><div id="barPersona"></div></div>
       </aside>
     </div>
   </section>
@@ -345,7 +363,76 @@ function demoItem([id, name, carpeta], i){
     size: carpeta ? 4200000 + i * 900000 : 80000 + i * 210000, folder: carpeta ? { childCount: (DEMO[id] || []).length } : undefined, file: carpeta ? undefined : {} };
 }
 function demoHijos(id){ return (DEMO[id] || []).map(demoItem); }
-function demoTodos(){ return Object.values(DEMO).flat().map(demoItem); }
+function demoTodos(){
+  const rutas = { root: "/drive/root:", f1: "/drive/root:/Proyectos M&CAPITAL", f2: "/drive/root:/Avalúos", f3: "/drive/root:/Proyectos M&CAPITAL/Legal" };
+  return Object.entries(DEMO).flatMap(([padre, hijos]) => hijos.map((h, i) => Object.assign(demoItem(h, i), { parentReference: { path: rutas[padre] } })));
+}
+
+/* ---------- Panorama de toda la biblioteca ---------- */
+const LIB_CHART = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";
+const PALETA = ["#1b3a5c","#1d6f7a","#c8a24a","#2557d6","#d4537e","#7f77dd","#1d9e75","#a4400b","#5f5e5a"];
+let biblioteca = null; const graficas = {};
+async function cargarBiblioteca(forzar){
+  if (biblioteca && !forzar) return pintarPanorama();
+  try {
+    if (!window.Chart) await cargarScript(LIB_CHART);
+    if (esDemo()) biblioteca = demoTodos();
+    else {
+      const todo = []; let url = `/drives/${drive.id}/root/delta?$select=id,name,size,webUrl,file,folder,root,deleted,lastModifiedDateTime,lastModifiedBy,parentReference`;
+      while (url) { const pg = await graph(url); todo.push(...(pg.value || [])); url = pg["@odata.nextLink"] || null; }
+      biblioteca = todo.filter(i => !i.deleted && !i.root);
+    }
+    pintarPanorama();
+  } catch (e) { $("recientes").innerHTML = `<p class="vacio">No se pudo leer toda la biblioteca: ${esc(e.message || e)}</p>`; }
+}
+function grafica(id, cfg){
+  if (graficas[id]) graficas[id].destroy();
+  cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+    plugins: Object.assign({ legend: { position: "bottom", labels: { boxWidth: 10, font: { family: "Inter", size: 11 } } } }, (cfg.options || {}).plugins || {}) }, cfg.options || {});
+  cfg.options.plugins = Object.assign({ legend: { position: "bottom", labels: { boxWidth: 10, font: { family: "Inter", size: 11 } } } }, cfg.options.plugins);
+  graficas[id] = new Chart($(id), cfg);
+}
+function carpetaDe(i){ const r = ((i.parentReference && i.parentReference.path) || "").split("root:")[1] || ""; return decodeURIComponent(r.split("/")[1] || "") || "(raíz)"; }
+function haceCuanto(iso){
+  const m = (Date.now() - new Date(iso)) / 60000;
+  if (m < 60) return `hace ${Math.max(1, Math.round(m))} min`; if (m < 1440) return `hace ${Math.round(m / 60)} h`;
+  const d = Math.round(m / 1440); return d < 31 ? `hace ${d} ${d === 1 ? "día" : "días"}` : fecha(iso).slice(0, 10);
+}
+function pintarPanorama(){
+  if (!biblioteca || !window.Chart) return;
+  const archivos = biblioteca.filter(i => i.file), carpetas = biblioteca.filter(i => i.folder);
+  const hace30 = Date.now() - 30 * 864e5;
+  const ico = {
+    a: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    b: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    c: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+    d: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+  };
+  const kpis = [["a", "Carpetas en total", fmtNum.format(carpetas.length)], ["b", "Archivos en total", fmtNum.format(archivos.length)],
+    ["c", "Espacio usado", tamano(archivos.reduce((a, i) => a + (i.size || 0), 0))], ["d", "Modificados en 30 días", fmtNum.format(archivos.filter(i => new Date(i.lastModifiedDateTime) >= hace30).length)]];
+  $("kpis").innerHTML = kpis.map(([k, l, v]) => `<div class="kpi"><div class="kico ${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ico[k]}</svg></div><div><div class="label">${l}</div><div class="value">${v}</div></div></div>`).join("");
+  // Tipos de archivo
+  const tipos = contar(archivos, i => tipoDe(i)[1]);
+  grafica("cTipos", { type: "doughnut", data: { labels: tipos.map(t => t[0]), datasets: [{ data: tipos.map(t => t[1]), backgroundColor: PALETA, borderWidth: 2, borderColor: "#fff" }] },
+    options: { cutout: "62%", plugins: { legend: { position: "right", labels: { boxWidth: 10, font: { family: "Inter", size: 11 } } } } } });
+  // Actividad de los últimos 12 meses
+  const MC = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"], hoy = new Date(), meses = [];
+  for (let k = 11; k >= 0; k--) { const d = new Date(hoy.getFullYear(), hoy.getMonth() - k, 1); meses.push({ y: d.getFullYear(), m: d.getMonth(), n: 0 }); }
+  archivos.forEach(i => { const d = new Date(i.lastModifiedDateTime); const x = meses.find(z => z.y === d.getFullYear() && z.m === d.getMonth()); if (x) x.n++; });
+  grafica("cMeses", { type: "bar", data: { labels: meses.map(z => `${MC[z.m]} ${String(z.y).slice(2)}`), datasets: [{ label: "Archivos", data: meses.map(z => z.n), backgroundColor: meses.map((z, k) => k === 11 ? "#c8a24a" : "#1d6f7a"), borderRadius: 6 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#eef1f5" } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } } });
+  // Espacio por carpeta principal
+  const esp = new Map(); archivos.forEach(i => esp.set(carpetaDe(i), (esp.get(carpetaDe(i)) || 0) + (i.size || 0)));
+  let orden = [...esp.entries()].sort((a, b) => b[1] - a[1]);
+  if (orden.length > 6) orden = orden.slice(0, 5).concat([["Otras", orden.slice(5).reduce((a, x) => a + x[1], 0)]]);
+  grafica("cEspacio", { type: "bar", data: { labels: orden.map(x => x[0]), datasets: [{ label: "Espacio", data: orden.map(x => x[1]), backgroundColor: "#1b3a5c", borderRadius: 6 }] },
+    options: { indexAxis: "y", plugins: { legend: { display: false }, tooltip: { callbacks: { label: t => tamano(t.raw) } } }, scales: { x: { ticks: { callback: v => tamano(v) }, grid: { color: "#eef1f5" } }, y: { grid: { display: false } } } } });
+  // Modificados recientemente
+  const rec = archivos.slice().sort((a, b) => new Date(b.lastModifiedDateTime) - new Date(a.lastModifiedDateTime)).slice(0, 7);
+  $("recientes").innerHTML = rec.map((i, k) => { const [cls, t] = tipoDe(i); return `<div class="reciente" data-k="${k}"><span class="tipo ${cls}">${esc(t)}</span><div><div class="rn" title="${esc(i.name)}">${esc(i.name)}</div><div class="rm">${haceCuanto(i.lastModifiedDateTime)} · ${esc(persona(i))} · ${esc(carpetaDe(i))}</div></div></div>`; }).join("") || `<p class="vacio">Sin archivos todavía.</p>`;
+  $("recientes").querySelectorAll(".reciente").forEach(el => el.onclick = () => { const i = rec[+el.dataset.k]; if (/\.pdf$/i.test(i.name)) abrirLector(i); else if (i.webUrl && i.webUrl !== "#") window.open(i.webUrl, "_blank", "noopener"); });
+  barras("barPersona", contar(archivos, persona));
+}
 
 /* ---------- Pintado ---------- */
 function pintarCrumbs(){
@@ -379,8 +466,7 @@ function pintarPanel(){
     ["d", "Modificados en 30 días", fmtNum.format(items.filter(i => new Date(i.lastModifiedDateTime).getTime() >= hace30).length)]
   ];
   $("kpis").innerHTML = kpis.map(([k, l, v]) => `<div class="kpi"><div class="kico ${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ico[k]}</svg></div><div><div class="label">${l}</div><div class="value">${v}</div></div></div>`).join("");
-  barras("barTipo", contar(archivos, i => tipoDe(i)[1]));
-  barras("barPersona", contar(items, persona));
+  if (biblioteca) pintarPanorama();
   pintarCrumbs();
   pintarTabla();
 }
@@ -573,7 +659,7 @@ function cambiarPestana(t){
   $("buscar").oninput = pintarTabla;
   $("buscar").onkeydown = e => { if (e.key === "Enter") buscarEnTodo(); };
   $("btnBuscarTodo").onclick = buscarEnTodo;
-  $("btnRefrescar").onclick = () => estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual());
+  $("btnRefrescar").onclick = () => { cargarBiblioteca(true); estado.busqueda ? buscarEnTodo() : mostrar(carpetaActual()); };
   document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => cambiarPestana(b.dataset.tab));
   $("vCerrar").onclick = cerrarLector;
   // Vuelve a leer la carpeta de SharePoint (meses o años nuevos) y redibuja el reporte Pantera
@@ -584,7 +670,7 @@ function cambiarPestana(t){
   if (esDemo()) {
     aviso("demo", "<b>Modo demo.</b> Son archivos de ejemplo. Quita <code>?demo</code> de la dirección para ver tus archivos reales.");
     drive = { name: "Documentos" }; $("txtOrigen").textContent = "Origen: ejemplo"; $("txtSitio").textContent = "Tecnología RapiPréstamos";
-    pintarUsuario(); mostrar("root"); return;
+    pintarUsuario(); mostrar("root"); cargarBiblioteca(); return;
   }
   try {
     cargando("Conectando con Microsoft…");
@@ -595,6 +681,7 @@ function cambiarPestana(t){
     const origen = await abrirBiblioteca();
     $("txtOrigen").textContent = "Origen: " + origen; $("txtSitio").textContent = origen.split(" · ")[0];
     await mostrar("root");
+    cargarBiblioteca();
   } catch (e) {
     vista(cuenta ? "vistaPanel" : "vistaLogin");
     aviso("error", esc(e.message || e));
