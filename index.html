@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Archivos · SharePoint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#f4f5f7;--card:#ffffff;--text:#16213a;--muted:#5a6478;--line:#e1e5ec;--accent:#2557d6;--accent-soft:#e8eefc;--ok:#1d7a4f;--bad:#b42318}
   *{box-sizing:border-box}
@@ -87,11 +89,60 @@
   .vtag.ocr{background:#fdeee3;color:#a4400b}.vtag.txt{background:#e3f4ec;color:#1d7a4f}
   @media (max-width:800px){.vpag{grid-template-columns:1fr}}
   .pos{color:var(--ok)}
+  /* ---------- Diseño (misma línea visual que el reporte Pantera) ---------- */
+  :root{--navy:#0f2440;--navy2:#1b3a5c;--teal:#1d6f7a;--gold:#c8a24a;--bg:#f3f5f8;--line:#e3e8ef;--text:#14213a;--muted:#5b6578}
+  body{font-family:Inter,"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg)}
+  header{padding:12px 28px;border-bottom:0;box-shadow:0 1px 0 var(--line)}
+  .marca{display:flex;align-items:center;gap:12px}
+  .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;letter-spacing:.5px;box-shadow:inset 0 -3px 0 var(--gold)}
+  header h1{font-size:17px;font-weight:700;letter-spacing:-.2px}
+  .tabs{padding:0 28px;border-bottom:0;box-shadow:0 1px 0 var(--line);background:#fff}
+  .tabs button{padding:13px 18px;font-size:14px}
+  .tabs button.on{color:var(--navy);border-bottom-color:var(--gold)}
+  main{max-width:1280px;padding:24px 28px 56px}
+  .hero{background:linear-gradient(115deg,var(--navy) 0%,var(--navy2) 55%,var(--teal) 100%);color:#fff;border-radius:18px;padding:22px 26px;display:grid;grid-template-columns:1fr auto;gap:14px 24px;align-items:end;box-shadow:0 10px 30px rgba(15,36,64,.18);position:relative;overflow:hidden}
+  .hero:before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--gold),transparent)}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:1.6px;color:var(--gold);text-transform:uppercase}
+  .hero h2{font-size:26px;margin:4px 0 6px;font-weight:700;letter-spacing:-.4px}
+  .hero .crumbs{margin:0;font-size:14px}
+  .hero .crumbs a{color:#cfe0ff}.hero .crumbs b{color:#fff}.hero .crumbs .sep{color:#8fa6c4}
+  .hero-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .hero-tools input{min-width:240px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff}
+  .hero-tools input::placeholder{color:#c3d1e6}
+  .hero-tools button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);color:#fff;font-weight:600}
+  .hero-tools button:hover{background:rgba(255,255,255,.22)}
+  .hero-meta{grid-column:1/-1;font-size:12px;color:#b9c8dd;display:flex;gap:10px;flex-wrap:wrap}
+  #vistaPanel .kpis{margin:18px 0}
+  #vistaPanel .kpi{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .kico{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+  .kico svg{width:22px;height:22px}
+  .kico.a{background:#fff4dc;color:#a86f00}.kico.b{background:#e7eefc;color:#2557d6}.kico.c{background:#e4f4ef;color:#1d7a4f}.kico.d{background:#f1e8fd;color:#6b3fb5}
+  #vistaPanel .kpi .value{font-size:24px;font-weight:700;margin-top:2px;letter-spacing:-.3px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+  @media (max-width:980px){.layout{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.hero-tools{justify-content:flex-start}}
+  .layout aside{display:flex;flex-direction:column;gap:16px}
+  .layout .panel{border-radius:14px;border:1px solid var(--line);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .layout aside .panel + .panel{margin-top:0}
+  .lista{padding:0;overflow:hidden}
+  .lista-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .lista-head h2{margin:0;font-size:15px}
+  .lista .tablewrap{border:0;border-radius:0}
+  #tabla th{background:#f8fafc;font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding:10px 16px}
+  #tabla td{padding:11px 16px;border-bottom:1px solid #eef1f5}
+  #tabla tbody tr:hover{background:#f7f9fc}
+  #tabla tr:last-child td{border-bottom:0}
+  td.nombre .tipo{margin-right:12px;vertical-align:middle}
+  td.nombre a{font-weight:500}
+  .tipo{min-width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;margin:0;letter-spacing:.3px}
+  .tipo.carpeta{background:#fff4dc;color:#a86f00}
+  .bar{grid-template-columns:110px 1fr 40px}
+  .bar .fill{background:linear-gradient(90deg,var(--navy2),var(--teal))}
+  .vacio{color:var(--muted);font-size:13px;margin:0;line-height:1.5}
 </style>
 </head>
 <body>
 <header>
-  <h1 id="titulo">Archivos</h1>
+  <div class="marca"><div class="logo">RP</div><h1 id="titulo">Panel de datos</h1></div>
   <div class="user" id="userbox"></div>
 </header>
 <nav class="tabs hidden" id="tabs">
@@ -116,24 +167,29 @@
   </section>
 
   <section id="vistaPanel" class="hidden">
-    <div class="crumbs" id="crumbs"></div>
-    <div class="meta">
-      <span id="txtOrigen"></span>
-      <span id="txtHora"></span>
-      <button id="btnRefrescar">Actualizar</button>
+    <div class="hero">
+      <div>
+        <div class="eyebrow" id="txtSitio">SharePoint</div>
+        <h2>Documentos</h2>
+        <div class="crumbs" id="crumbs"></div>
+      </div>
+      <div class="hero-tools">
+        <input type="search" id="buscar" placeholder="Filtrar en esta carpeta">
+        <button id="btnBuscarTodo">Buscar en todo</button>
+        <button id="btnRefrescar">↻ Actualizar</button>
+      </div>
+      <div class="hero-meta"><span id="txtOrigen"></span><span id="txtHora"></span></div>
     </div>
     <div class="kpis" id="kpis"></div>
-    <div class="grid2">
-      <div class="panel"><h2>Archivos por tipo</h2><div id="barTipo"></div></div>
-      <div class="panel"><h2>Modificados por</h2><div id="barPersona"></div></div>
-    </div>
-    <div class="panel">
-      <div class="tools">
-        <input type="search" id="buscar" placeholder="Filtrar en esta carpeta">
-        <button id="btnBuscarTodo">Buscar en toda la biblioteca</button>
-        <span id="txtConteo" style="color:var(--muted);font-size:13px"></span>
+    <div class="layout">
+      <div class="panel lista">
+        <div class="lista-head"><h2>Contenido</h2><span id="txtConteo" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="tablewrap"><table id="tabla"></table></div>
       </div>
-      <div class="tablewrap"><table id="tabla"></table></div>
+      <aside>
+        <div class="panel"><h2>Archivos por tipo</h2><div id="barTipo"></div></div>
+        <div class="panel"><h2>Modificados por</h2><div id="barPersona"></div></div>
+      </aside>
     </div>
   </section>
 
@@ -303,20 +359,26 @@ function barras(cont, pares){
   const max = Math.max(1, ...pares.map(p => p[1]));
   $(cont).innerHTML = pares.slice(0, 8).map(([n, v]) =>
     `<div class="bar"><span class="name" title="${esc(n)}">${esc(n)}</span><div class="track"><div class="fill" style="width:${Math.round(v / max * 100)}%"></div></div><span class="num">${fmtNum.format(v)}</span></div>`).join("")
-    || `<p style="color:var(--muted);margin:0">Sin archivos en esta carpeta</p>`;
+    || `<p class="vacio">Aquí solo hay carpetas. Entra a una para ver sus archivos.</p>`;
 }
 function contar(lista, fn){ const m = new Map(); lista.forEach(x => { const k = fn(x); m.set(k, (m.get(k) || 0) + 1); }); return [...m.entries()].sort((a, b) => b[1] - a[1]); }
 
 function pintarPanel(){
   const items = estado.items, archivos = items.filter(i => !i.folder), carpetas = items.filter(i => i.folder);
   const hace30 = Date.now() - 30 * 864e5;
+  const ico = {
+    a: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    b: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    c: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+    d: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+  };
   const kpis = [
-    ["Carpetas", fmtNum.format(carpetas.length)],
-    ["Archivos", fmtNum.format(archivos.length)],
-    ["Tamaño total", tamano(items.reduce((a, i) => a + (i.size || 0), 0))],
-    ["Modificados en 30 días", fmtNum.format(items.filter(i => new Date(i.lastModifiedDateTime).getTime() >= hace30).length)]
+    ["a", "Carpetas", fmtNum.format(carpetas.length)],
+    ["b", "Archivos", fmtNum.format(archivos.length)],
+    ["c", "Tamaño total", tamano(items.reduce((a, i) => a + (i.size || 0), 0))],
+    ["d", "Modificados en 30 días", fmtNum.format(items.filter(i => new Date(i.lastModifiedDateTime).getTime() >= hace30).length)]
   ];
-  $("kpis").innerHTML = kpis.map(([l, v]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("");
+  $("kpis").innerHTML = kpis.map(([k, l, v]) => `<div class="kpi"><div class="kico ${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ico[k]}</svg></div><div><div class="label">${l}</div><div class="value">${v}</div></div></div>`).join("");
   barras("barTipo", contar(archivos, i => tipoDe(i)[1]));
   barras("barPersona", contar(items, persona));
   pintarCrumbs();
@@ -521,7 +583,7 @@ function cambiarPestana(t){
 
   if (esDemo()) {
     aviso("demo", "<b>Modo demo.</b> Son archivos de ejemplo. Quita <code>?demo</code> de la dirección para ver tus archivos reales.");
-    drive = { name: "Documentos" }; $("txtOrigen").textContent = "Origen: ejemplo";
+    drive = { name: "Documentos" }; $("txtOrigen").textContent = "Origen: ejemplo"; $("txtSitio").textContent = "Tecnología RapiPréstamos";
     pintarUsuario(); mostrar("root"); return;
   }
   try {
@@ -530,7 +592,8 @@ function cambiarPestana(t){
     pintarUsuario();
     $("btnLogin").onclick = () => msalApp.loginRedirect({ scopes: SCOPES, prompt: "select_account" });
     if (!cuenta) { vista("vistaLogin"); return; }
-    $("txtOrigen").textContent = "Origen: " + await abrirBiblioteca();
+    const origen = await abrirBiblioteca();
+    $("txtOrigen").textContent = "Origen: " + origen; $("txtSitio").textContent = origen.split(" · ")[0];
     await mostrar("root");
   } catch (e) {
     vista(cuenta ? "vistaPanel" : "vistaLogin");
